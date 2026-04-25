@@ -8,7 +8,7 @@ mobile-nixos.kernel-builder {
   configfile = ./config.armv7l;
 
   isQcdt = true;
-  isModular = false;
+  isModular = true;
 
   src = fetchFromGitHub {
     owner = "LineageOS";

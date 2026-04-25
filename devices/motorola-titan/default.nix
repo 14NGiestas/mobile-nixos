@@ -1,71 +1,83 @@
 { config, lib, pkgs, ... }:
-
+# https://discourse.nixos.org/t/how-to-have-a-minimal-nixos/22652/4
 let
   # Firmware GPU Adreno 305 para o initramfs (stage-1)
-  qcom-video-firmware = pkgs.runCommand "titan-gpu-firmware" {} ''
-    mkdir -p $out/lib/firmware/qcom
-    # Usa caminhos explícitos + || true para não travar se o arquivo não existir no linux-firmware atual
-    cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pfp.fw $out/lib/firmware/qcom/ 2>/dev/null || true
-    cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pm4.fw $out/lib/firmware/qcom/ 2>/dev/null || true
-  '';
+  # Commented out to save ~3-4 MB; can be re-enabled in stage-2 later
+  # qcom-video-firmware = pkgs.runCommand "titan-gpu-firmware" {} ''
+  #   mkdir -p $out/lib/firmware/qcom
+  #   cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pfp.fw $out/lib/firmware/qcom/ 2>/dev/null || true
+  #   cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pm4.fw $out/lib/firmware/qcom/ 2>/dev/null || true
+  # '';
 in
 {
+  # 🔥 Minimal initrd: critical for 10MB boot partition
+  boot.initrd = {
+    includeDefaultModules = false;
+    availableKernelModules = lib.mkForce [
+      "mmc_core" "mmc_block" "mmc_msm" "ext4" "jbd2"
+    ];
+    kernelModules = [];
+    compressor = "gzip";  # Lower overhead than xz on small archives
+    
+    # Disable systemd in stage-1 (saves ~4-6 MB)
+    systemd.enable = lib.mkForce false;
+    network.enable = lib.mkForce false;
+  };
+
+  # 📡 Console routed to USB UART for headless debugging
+  boot.kernelParams = lib.mkForce [
+    "earlyprintk" "loglevel=8" "console=ttyHSL0,115200n8"
+    "lsm=landlock,yama,bpf"
+    "usbcore.autosuspend=-1" "usbcore.old_scheme_first=1"
+    "androidboot.battid=ignore"  # Skip battery check (CAF-specific)
+  ];
+
+  # 📷 Camera modules: MOVED TO STAGE-2 (not needed for boot)
+  # boot.kernelModules = [ "msm_isp" "msm_camera" "media-controller" ];
+
   mobile = {
     device.name = "motorola-titan";
     device.identity = {
       name = "Motorola Moto G (2nd gen)";
       manufacturer = "Motorola";
     };
-    # The boot image is currently too big to fit.
     device.supportLevel = "broken";
+    boot.stage-1.extraUtils = lib.mkForce [];
 
     hardware = {
       soc = "qualcomm-msm8226";
       ram = 1024 * 1;
-      screen = {
-        width = 720; height = 1280;
-      };
+      screen = { width = 720; height = 1280; };
     };
 
-    boot.stage-1.firmware = [
-      qcom-video-firmware
-    ];
+    # ❌ Firmware disabled for stage-1 (save space; load in stage-2)
+    # boot.stage-1.firmware = [ qcom-video-firmware ];
 
     boot.stage-1.kernel = {
       package = pkgs.callPackage ./kernel { };
     };
 
-    # in your configuration.nix hardware.firmware, in addition to this
-    # package you will probably need pkgs.linux-firmware, pkgs.wireless-regdb
     device.firmware = pkgs.callPackage ./firmware {};
-    # Firmware is not enabled by default since it requires manually providing unredistributable files.
     device.enableFirmware = false;
 
     system.android.device_name = "titan";
-    system.android = {
-    # FIXME: These values may need to be adjusted for titan
-      bootimg.flash = {
-        offset_base = "0x00000000";
-        offset_kernel = "0x00008000";
-        offset_ramdisk = "0x01000000";
-        offset_second = "0x00f00000";
-        offset_tags = "0x00000100";
-        pagesize = "2048";
-      };
+    system.android.bootimg.flash = {
+      offset_base = "0x00000000";
+      offset_kernel = "00008000";
+      offset_ramdisk = "01000000";
+      offset_second = "00f00000";
+      offset_tags = "00000100";
+      pagesize = "2048";
     };
 
-    # The boot partition on this phone is 10MB, so use `xz` compression
-    # as smaller than gzip
-    boot.stage-1.compression = lib.mkDefault "xz";
+    # ✅ Match initrd compressor to avoid double-compression overhead
+    boot.stage-1.compression = "gzip";
 
     usb = {
-      mode = "gadgetfs";
-      idVendor = "22b8";  # Motorola
-        idProduct = "2e82"; # Moto G (tethering)
-        gadgetfs.functions = {
-          rndis = "rndis.usb0";
-          adb = "ffs.adb";
-        };
+      mode = "android_usb";  # Switches to g_android (in-kernel enumeration)
+      idVendor = "22b8";
+      idProduct = "2e82";
+      # Removed gadgetfs.functions (no longer needed)
     };
 
     system.type = "android";
@@ -73,10 +85,20 @@ in
     
     kernel.structuredConfig = [
       (helpers: with helpers; {
-       CC_OPTIMIZE_FOR_PERFORMANCE = no;
-       CC_OPTIMIZE_FOR_SIZE = yes;
-       })
+        CC_OPTIMIZE_FOR_PERFORMANCE = no;
+        CC_OPTIMIZE_FOR_SIZE = yes;
+      })
     ];
   };
-}
 
+  # 🗑️ Strip NixOS closure bloat (inspired by nixfiles.md minimal profile)
+  documentation.enable = lib.mkForce false;
+  documentation.man.enable = lib.mkForce false;
+  documentation.info.enable = lib.mkForce false;
+  environment.defaultPackages = lib.mkForce [];
+  environment.noXlibs = true;
+  xdg.icons.enable = false;
+  xdg.mime.enable = false;
+  xdg.sounds.enable = false;
+  i18n.supportedLocales = [ "en_US.UTF-8/UTF-8" ];
+}

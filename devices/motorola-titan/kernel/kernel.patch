@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 3046cb6a..e35ee226 100644
+index 3046cb6a..310b4089 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,3 +1,5 @@
@@ -8,7 +8,27 @@ index 3046cb6a..e35ee226 100644
  VERSION = 3
  PATCHLEVEL = 4
  SUBLEVEL = 113
-@@ -1595,3 +1597,15 @@ FORCE:
+@@ -1140,6 +1142,8 @@ modules_install: _modinst_ _modinst_post
+ 
+ PHONY += _modinst_
+ _modinst_:
++	@touch modules.order 2>/dev/null || true
++	@touch modules.builtin 2>/dev/null || true
+ 	@rm -rf $(MODLIB)/kernel
+ 	@rm -f $(MODLIB)/source
+ 	@mkdir -p $(MODLIB)/kernel
+@@ -1148,8 +1152,8 @@ _modinst_:
+ 		rm -f $(MODLIB)/build ; \
+ 		ln -s $(objtree) $(MODLIB)/build ; \
+ 	fi
+-	@cp -f $(objtree)/modules.order $(MODLIB)/
+-	@cp -f $(objtree)/modules.builtin $(MODLIB)/
++	@cp -f $(objtree)/modules.order $(MODLIB)/ 2>/dev/null || true
++	@cp -f $(objtree)/modules.builtin $(MODLIB)/ 2>/dev/null || true
+ 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
+ 
+ # This depmod is only for convenience to give the initial
+@@ -1595,3 +1599,15 @@ FORCE:
  # Declare the contents of the .PHONY variable as phony.  We keep that
  # information in a variable so we can use it in if_changed and friends.
  .PHONY: $(PHONY)
@@ -181,37 +201,6 @@ index 5703f300..918d030a 100644
  	.globl	input_data
  input_data:
  	.incbin	"arch/arm/boot/compressed/piggy.xzkern"
-diff --git a/arch/arm/common/gic.c b/arch/arm/common/gic.c
-index 59fa1d32..753d6d78 100644
---- a/arch/arm/common/gic.c
-+++ b/arch/arm/common/gic.c
-@@ -1006,7 +1006,7 @@ void gic_set_irq_secure(unsigned int irq)
- {
- 	unsigned int gicd_isr_reg, gicd_pri_reg;
- 	unsigned int mask = 0xFFFFFF00;
--	struct gic_chip_data *gic_data = &gic_data[0];
-+	struct gic_chip_data *gic = &gic_data[0];
- 	struct irq_data *d = irq_get_irq_data(irq);
- 
- 	if (is_cpu_secure()) {
-@@ -1069,7 +1069,7 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
- bool gic_is_irq_pending(unsigned int irq)
- {
- 	struct irq_data *d = irq_get_irq_data(irq);
--	struct gic_chip_data *gic_data = &gic_data[0];
-+	struct gic_chip_data *gic = &gic_data[0];
- 	u32 mask, val;
- 
- 	WARN_ON(!irqs_disabled());
-@@ -1091,7 +1091,7 @@ bool gic_is_irq_pending(unsigned int irq)
-  */
- void gic_clear_irq_pending(unsigned int irq)
- {
--	struct gic_chip_data *gic_data = &gic_data[0];
-+	struct gic_chip_data *gic = &gic_data[0];
- 	struct irq_data *d = irq_get_irq_data(irq);
- 
- 	u32 mask, val;
 diff --git a/arch/arm/crypto/aes-armv4.S b/arch/arm/crypto/aes-armv4.S
 index 3a14ea8f..ed205195 100644
 --- a/arch/arm/crypto/aes-armv4.S
