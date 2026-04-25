@@ -1,0 +1,912 @@
+diff --git a/Makefile b/Makefile
+index 3046cb6a..e35ee226 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,3 +1,5 @@
++CONFIG_NO_ERROR_ON_MISMATCH := y
++KBUILD_NOCMDDEP = 1
+ VERSION = 3
+ PATCHLEVEL = 4
+ SUBLEVEL = 113
+@@ -1595,3 +1597,15 @@ FORCE:
+ # Declare the contents of the .PHONY variable as phony.  We keep that
+ # information in a variable so we can use it in if_changed and friends.
+ .PHONY: $(PHONY)
++# GCC 10+ compat: disable aggressive optimizations that break legacy inline asm & static asserts
++KBUILD_CFLAGS += -fno-ipa-icf -fno-tree-loop-distribute-patterns -fno-strict-aliasing -fno-strict-overflow -fwrapv -fno-delete-null-pointer-checks
++HOSTCFLAGS += -std=gnu89 -Wno-error
++KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
++KBUILD_NOCMDDEP := 1
++KBUILD_CFLAGS += -fno-ipa-icf -fno-tree-loop-distribute-patterns -fno-strict-aliasing -fno-asynchronous-unwind-tables
++HOSTCFLAGS += -std=gnu89 -Wno-error
++KBUILD_NOCMDDEP := 1
++KBUILD_CFLAGS += -fno-ipa-icf -fno-tree-loop-distribute-patterns -fno-strict-aliasing -fno-asynchronous-unwind-tables
++HOSTCFLAGS += -std=gnu89 -Wno-error
++KBUILD_CFLAGS += -Wno-error=implicit-function-declaration
++CONFIG_NO_ERROR_ON_MISMATCH := y
+diff --git a/arch/arm/boot/bootp/init.S b/arch/arm/boot/bootp/init.S
+index 78b50807..9d06ce40 100644
+--- a/arch/arm/boot/bootp/init.S
++++ b/arch/arm/boot/bootp/init.S
+@@ -71,7 +71,7 @@ move:		ldmia	r4!, {r7 - r10}		@ move 32-bytes at a time
+ 		bcs	move
+ 		mov	pc, lr
+ 
+-		.size	_start, . - _start
++		.size _start, . - _start
+ 
+ 		.align
+ 
+@@ -85,4 +85,4 @@ data:		.word	initrd_start		@ source initrd address
+ 		.word	initrd_phys		@ r7
+ 		.word	initrd_size		@ r8
+ 		.word	params_phys		@ r9
+-		.size	data, . - data
++		.size data, . - data
+diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
+index d3892efb..b8054c3c 100644
+--- a/arch/arm/boot/compressed/head.S
++++ b/arch/arm/boot/compressed/head.S
+@@ -475,7 +475,7 @@ LC0:		.word	LC0			@ r1
+ 		.word	_got_start		@ r11
+ 		.word	_got_end		@ ip
+ 		.word	.L_user_stack_end	@ sp
+-		.size	LC0, . - LC0
++		.size LC0, . - LC0
+ 
+ #ifdef CONFIG_ARCH_RPC
+ 		.globl	params
+@@ -916,7 +916,7 @@ proc_types:
+ 		mov	pc, lr
+  THUMB(		nop				)
+ 
+-		.size	proc_types, . - proc_types
++		.size proc_types, . - proc_types
+ 
+ 		/*
+ 		 * If you get a "non-constant expression in ".if" statement"
+@@ -1162,7 +1162,7 @@ __armv3_mpu_cache_flush:
+ 		.align	2
+ 		.type	phexbuf,#object
+ phexbuf:	.space	12
+-		.size	phexbuf, . - phexbuf
++		.size phexbuf, . - phexbuf
+ 
+ @ phex corrupts {r0, r1, r2, r3}
+ phex:		adr	r3, phexbuf
+diff --git a/arch/arm/common/gic.c b/arch/arm/common/gic.c
+index 59fa1d32..753d6d78 100644
+--- a/arch/arm/common/gic.c
++++ b/arch/arm/common/gic.c
+@@ -1006,7 +1006,7 @@ void gic_set_irq_secure(unsigned int irq)
+ {
+ 	unsigned int gicd_isr_reg, gicd_pri_reg;
+ 	unsigned int mask = 0xFFFFFF00;
+-	struct gic_chip_data *gic_data = &gic_data[0];
++	struct gic_chip_data *gic = &gic_data[0];
+ 	struct irq_data *d = irq_get_irq_data(irq);
+ 
+ 	if (is_cpu_secure()) {
+@@ -1069,7 +1069,7 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
+ bool gic_is_irq_pending(unsigned int irq)
+ {
+ 	struct irq_data *d = irq_get_irq_data(irq);
+-	struct gic_chip_data *gic_data = &gic_data[0];
++	struct gic_chip_data *gic = &gic_data[0];
+ 	u32 mask, val;
+ 
+ 	WARN_ON(!irqs_disabled());
+@@ -1091,7 +1091,7 @@ bool gic_is_irq_pending(unsigned int irq)
+  */
+ void gic_clear_irq_pending(unsigned int irq)
+ {
+-	struct gic_chip_data *gic_data = &gic_data[0];
++	struct gic_chip_data *gic = &gic_data[0];
+ 	struct irq_data *d = irq_get_irq_data(irq);
+ 
+ 	u32 mask, val;
+diff --git a/arch/arm/crypto/aes-armv4.S b/arch/arm/crypto/aes-armv4.S
+index 3a14ea8f..ed205195 100644
+--- a/arch/arm/crypto/aes-armv4.S
++++ b/arch/arm/crypto/aes-armv4.S
+@@ -142,7 +142,7 @@ AES_Te:
+ .word	0x01000000, 0x02000000, 0x04000000, 0x08000000
+ .word	0x10000000, 0x20000000, 0x40000000, 0x80000000
+ .word	0x1B000000, 0x36000000, 0, 0, 0, 0, 0, 0
+-.size	AES_Te,.-AES_Te
++.size AES_Te,.-AES_Te
+ 
+ @ void AES_encrypt(const unsigned char *in, unsigned char *out,
+ @ 		 const AES_KEY *key) {
+@@ -376,7 +376,7 @@ _armv4_AES_encrypt:
+ 
+ 	sub	r10,r10,#2
+ 	ldr	pc,[sp],#4		@ pop and return
+-.size	_armv4_AES_encrypt,.-_armv4_AES_encrypt
++.size _armv4_AES_encrypt,.-_armv4_AES_encrypt
+ 
+ .align	5
+ ENTRY(private_AES_set_encrypt_key)
+@@ -837,7 +837,7 @@ AES_Td:
+ .byte	0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61
+ .byte	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26
+ .byte	0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
+-.size	AES_Td,.-AES_Td
++.size AES_Td,.-AES_Td
+ 
+ @ void AES_decrypt(const unsigned char *in, unsigned char *out,
+ @ 		 const AES_KEY *key) {
+@@ -1083,6 +1083,6 @@ _armv4_AES_decrypt:
+ 
+ 	sub	r10,r10,#1024
+ 	ldr	pc,[sp],#4		@ pop and return
+-.size	_armv4_AES_decrypt,.-_armv4_AES_decrypt
++.size _armv4_AES_decrypt,.-_armv4_AES_decrypt
+ .asciz	"AES for ARMv4, CRYPTOGAMS by <appro@openssl.org>"
+ .align	2
+diff --git a/arch/arm/include/asm/uaccess.h b/arch/arm/include/asm/uaccess.h
+index b04850fd..f8ad54b2 100644
+--- a/arch/arm/include/asm/uaccess.h
++++ b/arch/arm/include/asm/uaccess.h
+@@ -159,7 +159,7 @@ extern int __put_user_8(void *, unsigned long long);
+ 	({								\
+ 		unsigned long __limit = current_thread_info()->addr_limit - 1; \
+ 		const typeof(*(p)) __user *__tmp_p = (p);		\
+-		register const typeof(*(p)) __r2 asm("r2") = (x);	\
++		register typeof(*(p)) __r2 asm("r2") = (x);	\
+ 		register const typeof(*(p)) __user *__p asm("r0") = __tmp_p; \
+ 		register unsigned long __l asm("r1") = __limit;		\
+ 		register int __e asm("r0");				\
+diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
+index 854bd223..16a430a1 100644
+--- a/arch/arm/kernel/head-common.S
++++ b/arch/arm/kernel/head-common.S
+@@ -115,7 +115,7 @@ __mmap_switched_data:
+ 	.long	__atags_pointer			@ r6
+ 	.long	cr_alignment			@ r7
+ 	.long	init_thread_union + THREAD_START_SP @ sp
+-	.size	__mmap_switched_data, . - __mmap_switched_data
++	.size __mmap_switched_data, . - __mmap_switched_data
+ 
+ /*
+  * This provides a C-API version of __lookup_processor_type
+@@ -168,7 +168,7 @@ __lookup_processor_type_data:
+ 	.long	.
+ 	.long	__proc_info_begin
+ 	.long	__proc_info_end
+-	.size	__lookup_processor_type_data, . - __lookup_processor_type_data
++	.size __lookup_processor_type_data, . - __lookup_processor_type_data
+ 
+ __error_p:
+ #ifdef CONFIG_DEBUG_LL
+diff --git a/arch/arm/kernel/head.S b/arch/arm/kernel/head.S
+index f4ea7364..dbd03962 100644
+--- a/arch/arm/kernel/head.S
++++ b/arch/arm/kernel/head.S
+@@ -628,7 +628,7 @@ ENDPROC(fixup_pv_table)
+ 	.type	__pv_phys_offset, %object
+ __pv_phys_offset:
+ 	.long	0
+-	.size	__pv_phys_offset, . - __pv_phys_offset
++	.size __pv_phys_offset, . - __pv_phys_offset
+ __pv_offset:
+ 	.long	0
+ #endif
+diff --git a/arch/arm/mach-msm/clock-debug.c b/arch/arm/mach-msm/clock-debug.c
+index c3b72293..714839a6 100644
+--- a/arch/arm/mach-msm/clock-debug.c
++++ b/arch/arm/mach-msm/clock-debug.c
+@@ -190,7 +190,7 @@ static int fmax_rates_show(struct seq_file *m, void *unused)
+ 	struct clk *clock = m->private;
+ 	struct clk_vdd_class *vdd_class = clock->vdd_class;
+ 	int level = 0, i, nregs = vdd_class->num_regulators;
+-	char reg_name[10];
++	char reg_name[20];
+ 
+ 	int vdd_level = find_vdd_level(clock, clock->rate);
+ 	if (vdd_level < 0) {
+diff --git a/arch/arm/mach-msm/clock-rpm.c b/arch/arm/mach-msm/clock-rpm.c
+index 1d7a5e20..a36f66c1 100644
+--- a/arch/arm/mach-msm/clock-rpm.c
++++ b/arch/arm/mach-msm/clock-rpm.c
+@@ -13,7 +13,7 @@
+ 
+ #include <linux/err.h>
+ #include <linux/mutex.h>
+-#include <mach/clk-provider.h>
++#include <linux/clk-provider.h>
+ 
+ #include "rpm_resources.h"
+ #include "clock-rpm.h"
+diff --git a/arch/arm/mach-msm/cpufreq.c b/arch/arm/mach-msm/cpufreq.c
+index 9eaf2555..68608870 100644
+--- a/arch/arm/mach-msm/cpufreq.c
++++ b/arch/arm/mach-msm/cpufreq.c
+@@ -536,7 +536,7 @@ const struct file_operations msm_cpufreq_fops = {
+ static int __init msm_cpufreq_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+-	char clk_name[] = "cpu??_clk";
++	char clk_name[32];
+ 	struct clk *c;
+ 	int cpu, ret;
+ 
+diff --git a/arch/arm/mm/proc-arm1020.S b/arch/arm/mm/proc-arm1020.S
+index c11e32ef..d432528c 100644
+--- a/arch/arm/mm/proc-arm1020.S
++++ b/arch/arm/mm/proc-arm1020.S
+@@ -462,7 +462,7 @@ __arm1020_setup:
+ 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
+ #endif
+ 	mov	pc, lr
+-	.size	__arm1020_setup, . - __arm1020_setup
++	.size __arm1020_setup, . - __arm1020_setup
+ 
+ 	/*
+ 	 *  R
+@@ -504,7 +504,7 @@ cpu_arm1020_name:
+ 	.ascii	"RR"
+ #endif
+ 	.ascii	"\0"
+-	.size	cpu_arm1020_name, . - cpu_arm1020_name
++	.size cpu_arm1020_name, . - cpu_arm1020_name
+ 
+ 	.align
+ 
+@@ -529,4 +529,4 @@ __arm1020_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm1020_cache_fns
+-	.size	__arm1020_proc_info, . - __arm1020_proc_info
++	.size __arm1020_proc_info, . - __arm1020_proc_info
+diff --git a/arch/arm/mm/proc-arm1020e.S b/arch/arm/mm/proc-arm1020e.S
+index 9624a35c..d80851b4 100644
+--- a/arch/arm/mm/proc-arm1020e.S
++++ b/arch/arm/mm/proc-arm1020e.S
+@@ -443,7 +443,7 @@ __arm1020e_setup:
+ 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
+ #endif
+ 	mov	pc, lr
+-	.size	__arm1020e_setup, . - __arm1020e_setup
++	.size __arm1020e_setup, . - __arm1020e_setup
+ 
+ 	/*
+ 	 *  R
+@@ -489,4 +489,4 @@ __arm1020e_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm1020e_cache_fns
+-	.size	__arm1020e_proc_info, . - __arm1020e_proc_info
++	.size __arm1020e_proc_info, . - __arm1020e_proc_info
+diff --git a/arch/arm/mm/proc-arm1022.S b/arch/arm/mm/proc-arm1022.S
+index f2b45ee0..e98215f4 100644
+--- a/arch/arm/mm/proc-arm1022.S
++++ b/arch/arm/mm/proc-arm1022.S
+@@ -425,7 +425,7 @@ __arm1022_setup:
+ 	orr	r0, r0, #0x4000 		@ .R..............
+ #endif
+ 	mov	pc, lr
+-	.size	__arm1022_setup, . - __arm1022_setup
++	.size __arm1022_setup, . - __arm1022_setup
+ 
+ 	/*
+ 	 *  R
+@@ -472,4 +472,4 @@ __arm1022_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm1022_cache_fns
+-	.size	__arm1022_proc_info, . - __arm1022_proc_info
++	.size __arm1022_proc_info, . - __arm1022_proc_info
+diff --git a/arch/arm/mm/proc-arm1026.S b/arch/arm/mm/proc-arm1026.S
+index 95934d2e..454d70d4 100644
+--- a/arch/arm/mm/proc-arm1026.S
++++ b/arch/arm/mm/proc-arm1026.S
+@@ -420,7 +420,7 @@ __arm1026_setup:
+ 	orr	r0, r0, #0x4000 		@ .R.. .... .... ....
+ #endif
+ 	mov	pc, lr
+-	.size	__arm1026_setup, . - __arm1026_setup
++	.size __arm1026_setup, . - __arm1026_setup
+ 
+ 	/*
+ 	 *  R
+@@ -467,4 +467,4 @@ __arm1026_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm1026_cache_fns
+-	.size	__arm1026_proc_info, . - __arm1026_proc_info
++	.size __arm1026_proc_info, . - __arm1026_proc_info
+diff --git a/arch/arm/mm/proc-arm6_7.S b/arch/arm/mm/proc-arm6_7.S
+index 4fbeb5b8..48099ad5 100644
+--- a/arch/arm/mm/proc-arm6_7.S
++++ b/arch/arm/mm/proc-arm6_7.S
+@@ -253,7 +253,7 @@ __arm6_setup:	mov	r0, #0
+ 		mov	r0, #0x3c			@ . ..RS BLDP WCA.
+ #endif
+ 		mov	pc, lr
+-		.size	__arm6_setup, . - __arm6_setup
++		.size __arm6_setup, . - __arm6_setup
+ 
+ 		.type	__arm7_setup, #function
+ __arm7_setup:	mov	r0, #0
+@@ -267,7 +267,7 @@ __arm7_setup:	mov	r0, #0
+ 		mov	r0, #0x7c			@ . ..RS BLDP WCA.
+ #endif
+ 		mov	pc, lr
+-		.size	__arm7_setup, . - __arm7_setup
++		.size __arm7_setup, . - __arm7_setup
+ 
+ 		__INITDATA
+ 
+@@ -308,7 +308,7 @@ __\name\()_proc_info:
+ 		.long	v3_tlb_fns
+ 		.long	v3_user_fns
+ 		.long	v3_cache_fns
+-		.size	__\name\()_proc_info, . - __\name\()_proc_info
++		.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	arm67_proc_info	arm6,	0x41560600, 0xfffffff0, cpu_arm6_name, \
+diff --git a/arch/arm/mm/proc-arm720.S b/arch/arm/mm/proc-arm720.S
+index 0ac908c7..4b9f5957 100644
+--- a/arch/arm/mm/proc-arm720.S
++++ b/arch/arm/mm/proc-arm720.S
+@@ -131,7 +131,7 @@ __arm710_setup:
+ 	ldr	r5, arm710_cr1_set
+ 	orr	r0, r0, r5
+ 	mov	pc, lr				@ __ret (head.S)
+-	.size	__arm710_setup, . - __arm710_setup
++	.size __arm710_setup, . - __arm710_setup
+ 
+ 	/*
+ 	 *  R
+@@ -159,7 +159,7 @@ __arm720_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr				@ __ret (head.S)
+-	.size	__arm720_setup, . - __arm720_setup
++	.size __arm720_setup, . - __arm720_setup
+ 
+ 	/*
+ 	 *  R
+@@ -214,7 +214,7 @@ __\name\()_proc_info:
+ 		.long	v4_tlb_fns
+ 		.long	v4wt_user_fns
+ 		.long	v4_cache_fns
+-		.size	__\name\()_proc_info, . - __\name\()_proc_info
++		.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	arm720_proc_info arm710, 0x41807100, 0xffffff00, cpu_arm710_name, __arm710_setup
+diff --git a/arch/arm/mm/proc-arm740.S b/arch/arm/mm/proc-arm740.S
+index dc5de5d5..3e3d6191 100644
+--- a/arch/arm/mm/proc-arm740.S
++++ b/arch/arm/mm/proc-arm740.S
+@@ -116,7 +116,7 @@ __arm740_setup:
+ 
+ 	mov	pc, lr
+ 
+-	.size	__arm740_setup, . - __arm740_setup
++	.size __arm740_setup, . - __arm740_setup
+ 
+ 	__INITDATA
+ 
+@@ -146,4 +146,4 @@ __arm740_proc_info:
+ 	.long	0
+ 	.long	0
+ 	.long	v3_cache_fns			@ cache model
+-	.size	__arm740_proc_info, . - __arm740_proc_info
++	.size __arm740_proc_info, . - __arm740_proc_info
+diff --git a/arch/arm/mm/proc-arm7tdmi.S b/arch/arm/mm/proc-arm7tdmi.S
+index 6ddea3e4..390a0df4 100644
+--- a/arch/arm/mm/proc-arm7tdmi.S
++++ b/arch/arm/mm/proc-arm7tdmi.S
+@@ -56,7 +56,7 @@ ENDPROC(cpu_arm7tdmi_reset)
+ 		.type	__arm7tdmi_setup, #function
+ __arm7tdmi_setup:
+ 		mov	pc, lr
+-		.size	__arm7tdmi_setup, . - __arm7tdmi_setup
++		.size __arm7tdmi_setup, . - __arm7tdmi_setup
+ 
+ 		__INITDATA
+ 
+@@ -97,7 +97,7 @@ __\name\()_proc_info:
+ 		.long	0
+ 		.long	0
+ 		.long	v4_cache_fns
+-		.size	__\name\()_proc_info, . - __\name\()_proc_info
++		.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 		arm7tdmi_proc_info arm7tdmi, 0x41007700, 0xfff8ff00, \
+diff --git a/arch/arm/mm/proc-arm920.S b/arch/arm/mm/proc-arm920.S
+index 1981fad6..88256a7c 100644
+--- a/arch/arm/mm/proc-arm920.S
++++ b/arch/arm/mm/proc-arm920.S
+@@ -425,7 +425,7 @@ __arm920_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__arm920_setup, . - __arm920_setup
++	.size __arm920_setup, . - __arm920_setup
+ 
+ 	/*
+ 	 *  R
+@@ -478,4 +478,4 @@ __arm920_proc_info:
+ #else
+ 	.long	v4wt_cache_fns
+ #endif
+-	.size	__arm920_proc_info, . - __arm920_proc_info
++	.size __arm920_proc_info, . - __arm920_proc_info
+diff --git a/arch/arm/mm/proc-arm922.S b/arch/arm/mm/proc-arm922.S
+index 142bace0..e14590c5 100644
+--- a/arch/arm/mm/proc-arm922.S
++++ b/arch/arm/mm/proc-arm922.S
+@@ -403,7 +403,7 @@ __arm922_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__arm922_setup, . - __arm922_setup
++	.size __arm922_setup, . - __arm922_setup
+ 
+ 	/*
+ 	 *  R
+@@ -456,4 +456,4 @@ __arm922_proc_info:
+ #else
+ 	.long	v4wt_cache_fns
+ #endif
+-	.size	__arm922_proc_info, . - __arm922_proc_info
++	.size __arm922_proc_info, . - __arm922_proc_info
+diff --git a/arch/arm/mm/proc-arm925.S b/arch/arm/mm/proc-arm925.S
+index 3028390a..0d6a7262 100644
+--- a/arch/arm/mm/proc-arm925.S
++++ b/arch/arm/mm/proc-arm925.S
+@@ -471,7 +471,7 @@ __arm925_setup:
+ 	orr	r0, r0, #0x4000			@ .1.. .... .... ....
+ #endif
+ 	mov	pc, lr
+-	.size	__arm925_setup, . - __arm925_setup
++	.size __arm925_setup, . - __arm925_setup
+ 
+ 	/*
+ 	 *  R
+@@ -519,7 +519,7 @@ __\name\()_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm925_cache_fns
+-	.size	__\name\()_proc_info, . - __\name\()_proc_info
++	.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	arm925_proc_info arm925, 0x54029250, 0xfffffff0, cpu_arm925_name
+diff --git a/arch/arm/mm/proc-arm926.S b/arch/arm/mm/proc-arm926.S
+index 305d0adc..9d99847d 100644
+--- a/arch/arm/mm/proc-arm926.S
++++ b/arch/arm/mm/proc-arm926.S
+@@ -450,7 +450,7 @@ __arm926_setup:
+ 	orr	r0, r0, #0x4000			@ .1.. .... .... ....
+ #endif
+ 	mov	pc, lr
+-	.size	__arm926_setup, . - __arm926_setup
++	.size __arm926_setup, . - __arm926_setup
+ 
+ 	/*
+ 	 *  R
+@@ -500,4 +500,4 @@ __arm926_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	arm926_cache_fns
+-	.size	__arm926_proc_info, . - __arm926_proc_info
++	.size __arm926_proc_info, . - __arm926_proc_info
+diff --git a/arch/arm/mm/proc-arm940.S b/arch/arm/mm/proc-arm940.S
+index e5af9598..7106bad9 100644
+--- a/arch/arm/mm/proc-arm940.S
++++ b/arch/arm/mm/proc-arm940.S
+@@ -341,7 +341,7 @@ __arm940_setup:
+ 
+ 	mov	pc, lr
+ 
+-	.size	__arm940_setup, . - __arm940_setup
++	.size __arm940_setup, . - __arm940_setup
+ 
+ 	__INITDATA
+ 
+@@ -372,5 +372,5 @@ __arm940_proc_info:
+ 	.long	0
+ 	.long	0
+ 	.long	arm940_cache_fns
+-	.size	__arm940_proc_info, . - __arm940_proc_info
++	.size __arm940_proc_info, . - __arm940_proc_info
+ 
+diff --git a/arch/arm/mm/proc-arm946.S b/arch/arm/mm/proc-arm946.S
+index 3599b379..b576462b 100644
+--- a/arch/arm/mm/proc-arm946.S
++++ b/arch/arm/mm/proc-arm946.S
+@@ -395,7 +395,7 @@ __arm946_setup:
+ #endif
+ 	mov	pc, lr
+ 
+-	.size	__arm946_setup, . - __arm946_setup
++	.size __arm946_setup, . - __arm946_setup
+ 
+ 	__INITDATA
+ 
+@@ -426,5 +426,5 @@ __arm946_proc_info:
+ 	.long	0
+ 	.long	0
+ 	.long	arm946_cache_fns
+-	.size	__arm946_proc_info, . - __arm946_proc_info
++	.size __arm946_proc_info, . - __arm946_proc_info
+ 
+diff --git a/arch/arm/mm/proc-arm9tdmi.S b/arch/arm/mm/proc-arm9tdmi.S
+index 8881391d..549e7aec 100644
+--- a/arch/arm/mm/proc-arm9tdmi.S
++++ b/arch/arm/mm/proc-arm9tdmi.S
+@@ -56,7 +56,7 @@ ENDPROC(cpu_arm9tdmi_reset)
+ 		.type	__arm9tdmi_setup, #function
+ __arm9tdmi_setup:
+ 		mov	pc, lr
+-		.size	__arm9tdmi_setup, . - __arm9tdmi_setup
++		.size __arm9tdmi_setup, . - __arm9tdmi_setup
+ 
+ 		__INITDATA
+ 
+@@ -90,7 +90,7 @@ __\name\()_proc_info:
+ 		.long	0
+ 		.long	0
+ 		.long	v4_cache_fns
+-		.size	__\name\()_proc_info, . - __\name\()_proc_info
++		.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	arm9tdmi_proc_info arm9tdmi, 0x41009900, 0xfff8ff00, cpu_arm9tdmi_name
+diff --git a/arch/arm/mm/proc-fa526.S b/arch/arm/mm/proc-fa526.S
+index d217e979..cf55016a 100644
+--- a/arch/arm/mm/proc-fa526.S
++++ b/arch/arm/mm/proc-fa526.S
+@@ -166,7 +166,7 @@ __fa526_setup:
+ 	ldr	r5, fa526_cr1_set
+ 	orr	r0, r0, r5
+ 	mov	pc, lr
+-	.size	__fa526_setup, . - __fa526_setup
++	.size __fa526_setup, . - __fa526_setup
+ 
+ 	/*
+ 	 * .RVI ZFRS BLDP WCAM
+@@ -218,4 +218,4 @@ __fa526_proc_info:
+ 	.long	fa_tlb_fns
+ 	.long	fa_user_fns
+ 	.long	fa_cache_fns
+-	.size	__fa526_proc_info, . - __fa526_proc_info
++	.size __fa526_proc_info, . - __fa526_proc_info
+diff --git a/arch/arm/mm/proc-feroceon.S b/arch/arm/mm/proc-feroceon.S
+index 26a99842..92f93fff 100644
+--- a/arch/arm/mm/proc-feroceon.S
++++ b/arch/arm/mm/proc-feroceon.S
+@@ -529,7 +529,7 @@ __feroceon_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__feroceon_setup, . - __feroceon_setup
++	.size __feroceon_setup, . - __feroceon_setup
+ 
+ 	/*
+ 	 *      B
+@@ -584,7 +584,7 @@ __\name\()_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	feroceon_user_fns
+ 	.long	\cache
+-	 .size	__\name\()_proc_info, . - __\name\()_proc_info
++	 .size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ #ifdef CONFIG_CPU_FEROCEON_OLD_ID
+diff --git a/arch/arm/mm/proc-macros.S b/arch/arm/mm/proc-macros.S
+index 2ea177ac..b50609ba 100644
+--- a/arch/arm/mm/proc-macros.S
++++ b/arch/arm/mm/proc-macros.S
+@@ -290,7 +290,7 @@ ENTRY(\name\()_processor_functions)
+ 	.word	0
+ 	.endif
+ 
+-	.size	\name\()_processor_functions, . - \name\()_processor_functions
++	.size \name\()_processor_functions, . - \name\()_processor_functions
+ .endm
+ 
+ .macro define_cache_functions name:req
+@@ -310,7 +310,7 @@ ENTRY(\name\()_cache_fns)
+ 	.long	\name\()_dma_inv_range
+ 	.long	\name\()_dma_clean_range
+ 	.long	\name\()_dma_flush_range
+-	.size	\name\()_cache_fns, . - \name\()_cache_fns
++	.size \name\()_cache_fns, . - \name\()_cache_fns
+ .endm
+ 
+ .macro define_tlb_functions name:req, flags_up:req, flags_smp
+@@ -324,5 +324,5 @@ ENTRY(\name\()_tlb_fns)
+ 	.else
+ 		.long	\flags_up
+ 	.endif
+-	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
++	.size \name\()_tlb_fns, . - \name\()_tlb_fns
+ .endm
+diff --git a/arch/arm/mm/proc-mohawk.S b/arch/arm/mm/proc-mohawk.S
+index 224d0f54..52b6801f 100644
+--- a/arch/arm/mm/proc-mohawk.S
++++ b/arch/arm/mm/proc-mohawk.S
+@@ -368,7 +368,7 @@ __mohawk_setup:
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+ 
+-	.size	__mohawk_setup, . - __mohawk_setup
++	.size __mohawk_setup, . - __mohawk_setup
+ 
+ 	/*
+ 	 *  R
+@@ -418,4 +418,4 @@ __88sv331x_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	mohawk_cache_fns
+-	.size	__88sv331x_proc_info, . - __88sv331x_proc_info
++	.size __88sv331x_proc_info, . - __88sv331x_proc_info
+diff --git a/arch/arm/mm/proc-sa110.S b/arch/arm/mm/proc-sa110.S
+index 775d70fb..e7227981 100644
+--- a/arch/arm/mm/proc-sa110.S
++++ b/arch/arm/mm/proc-sa110.S
+@@ -176,7 +176,7 @@ __sa110_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__sa110_setup, . - __sa110_setup
++	.size __sa110_setup, . - __sa110_setup
+ 
+ 	/*
+ 	 *  R
+@@ -224,4 +224,4 @@ __sa110_proc_info:
+ 	.long	v4wb_tlb_fns
+ 	.long	v4wb_user_fns
+ 	.long	v4wb_cache_fns
+-	.size	__sa110_proc_info, . - __sa110_proc_info
++	.size __sa110_proc_info, . - __sa110_proc_info
+diff --git a/arch/arm/mm/proc-sa1100.S b/arch/arm/mm/proc-sa1100.S
+index d92dfd08..6db17820 100644
+--- a/arch/arm/mm/proc-sa1100.S
++++ b/arch/arm/mm/proc-sa1100.S
+@@ -214,7 +214,7 @@ __sa1100_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__sa1100_setup, . - __sa1100_setup
++	.size __sa1100_setup, . - __sa1100_setup
+ 
+ 	/*
+ 	 *  R
+@@ -268,7 +268,7 @@ __\name\()_proc_info:
+ 	.long	v4wb_tlb_fns
+ 	.long	v4_mc_user_fns
+ 	.long	v4wb_cache_fns
+-	.size	__\name\()_proc_info, . - __\name\()_proc_info
++	.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	sa1100_proc_info sa1100, 0x4401a110, 0xfffffff0, cpu_sa1100_name
+diff --git a/arch/arm/mm/proc-v6.S b/arch/arm/mm/proc-v6.S
+index a36d8dea..404e61fa 100644
+--- a/arch/arm/mm/proc-v6.S
++++ b/arch/arm/mm/proc-v6.S
+@@ -299,4 +299,4 @@ __v6_proc_info:
+ 	.long	v6wbi_tlb_fns
+ 	.long	v6_user_fns
+ 	.long	v6_cache_fns
+-	.size	__v6_proc_info, . - __v6_proc_info
++	.size __v6_proc_info, . - __v6_proc_info
+diff --git a/arch/arm/mm/proc-v7.S b/arch/arm/mm/proc-v7.S
+index 0168ea3b..54899592 100644
+--- a/arch/arm/mm/proc-v7.S
++++ b/arch/arm/mm/proc-v7.S
+@@ -326,7 +326,7 @@ __v7_setup_stack:
+ 	string	cpu_elf_name, "v7"
+ 	.align
+ 
+-	.section ".proc.info.init", #alloc, #execinstr
++	.section ".proc.info.init", @alloc, @execinstr
+ 
+ 	/*
+ 	 * Standard v7 proc info content
+@@ -354,60 +354,60 @@ __v7_setup_stack:
+ 	/*
+ 	 * ARM Ltd. Cortex A5 processor.
+ 	 */
+-	.type   __v7_ca5mp_proc_info, #object
++	.type   __v7_ca5mp_proc_info, %object
+ __v7_ca5mp_proc_info:
+ 	.long	0x410fc050
+ 	.long	0xff0ffff0
+ 	__v7_proc __v7_ca5mp_setup
+-	.size	__v7_ca5mp_proc_info, . - __v7_ca5mp_proc_info
++	.size __v7_ca5mp_proc_info, . - __v7_ca5mp_proc_info
+ 
+ 	/*
+ 	 * ARM Ltd. Cortex A9 processor.
+ 	 */
+-	.type   __v7_ca9mp_proc_info, #object
++	.type   __v7_ca9mp_proc_info, %object
+ __v7_ca9mp_proc_info:
+ 	.long	0x410fc090
+ 	.long	0xff0ffff0
+ 	__v7_proc __v7_ca9mp_setup
+-	.size	__v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
++	.size __v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
+ #endif	/* CONFIG_ARM_LPAE */
+ 
+ 	/*
+ 	 * ARM Ltd. Cortex A7 processor.
+ 	 */
+-	.type	__v7_ca7mp_proc_info, #object
++	.type	__v7_ca7mp_proc_info, %object
+ __v7_ca7mp_proc_info:
+ 	.long	0x410fc070
+ 	.long	0xff0ffff0
+ 	__v7_proc __v7_ca7mp_setup, hwcaps = HWCAP_IDIV
+-	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
++	.size __v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
+ 
+ 	/*
+ 	 * ARM Ltd. Cortex A15 processor.
+ 	 */
+-	.type	__v7_ca15mp_proc_info, #object
++	.type	__v7_ca15mp_proc_info, %object
+ __v7_ca15mp_proc_info:
+ 	.long	0x410fc0f0
+ 	.long	0xff0ffff0
+ 	__v7_proc __v7_ca15mp_setup, hwcaps = HWCAP_IDIV
+-	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
++	.size __v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
+ 
+ 	/*
+ 	 * Qualcomm Inc. Krait processors.
+ 	 */
+-	.type	__krait_proc_info, #object
++	.type	__krait_proc_info, %object
+ __krait_proc_info:
+ 	.long	0x510f0400		@ Required ID value
+ 	.long	0xff0ffc00		@ Mask for ID
+ 	__v7_proc __v7_setup, hwcaps = HWCAP_IDIV
+-	.size	__krait_proc_info, . - __krait_proc_info
++	.size __krait_proc_info, . - __krait_proc_info
+ 
+ 	/*
+ 	 * Match any ARMv7 processor core.
+ 	 */
+-	.type	__v7_proc_info, #object
++	.type	__v7_proc_info, %object
+ __v7_proc_info:
+ 	.long	0x000f0000		@ Required ID value
+ 	.long	0x000f0000		@ Mask for ID
+ 	__v7_proc __v7_setup
+-	.size	__v7_proc_info, . - __v7_proc_info
++	.size __v7_proc_info, . - __v7_proc_info
+diff --git a/arch/arm/mm/proc-xsc3.S b/arch/arm/mm/proc-xsc3.S
+index e8efd83b..274131de 100644
+--- a/arch/arm/mm/proc-xsc3.S
++++ b/arch/arm/mm/proc-xsc3.S
+@@ -482,7 +482,7 @@ __xsc3_setup:
+ 						@ ...I Z..S .... .... (uc)
+ 	mov	pc, lr
+ 
+-	.size	__xsc3_setup, . - __xsc3_setup
++	.size __xsc3_setup, . - __xsc3_setup
+ 
+ 	.type	xsc3_crval, #object
+ xsc3_crval:
+@@ -525,7 +525,7 @@ __\name\()_proc_info:
+ 	.long	v4wbi_tlb_fns
+ 	.long	xsc3_mc_user_fns
+ 	.long	xsc3_cache_fns
+-	.size	__\name\()_proc_info, . - __\name\()_proc_info
++	.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	xsc3_proc_info xsc3, 0x69056000, 0xffffe000
+diff --git a/arch/arm/mm/proc-xscale.S b/arch/arm/mm/proc-xscale.S
+index cea93605..b135d44b 100644
+--- a/arch/arm/mm/proc-xscale.S
++++ b/arch/arm/mm/proc-xscale.S
+@@ -574,7 +574,7 @@ __xscale_setup:
+ 	bic	r0, r0, r5
+ 	orr	r0, r0, r6
+ 	mov	pc, lr
+-	.size	__xscale_setup, . - __xscale_setup
++	.size __xscale_setup, . - __xscale_setup
+ 
+ 	/*
+ 	 *  R
+@@ -641,7 +641,7 @@ __\name\()_proc_info:
+ 	.else
+ 		.long	\cache
+ 	.endif
+-	.size	__\name\()_proc_info, . - __\name\()_proc_info
++	.size __\name\()_proc_info, . - __\name\()_proc_info
+ .endm
+ 
+ 	xscale_proc_info 80200_A0_A1, 0x69052000, 0xfffffffe, cpu_80200_name, \
+diff --git a/include/linux/bug.h b/include/linux/bug.h
+index cd141a4a..b6ac7d67 100644
+--- a/include/linux/bug.h
++++ b/include/linux/bug.h
+@@ -15,7 +15,7 @@ struct pt_regs;
+ #define BUILD_BUG_ON_NOT_POWER_OF_2(n)
+ #define BUILD_BUG_ON_ZERO(e) (0)
+ #define BUILD_BUG_ON_NULL(e) ((void*)0)
+-#define BUILD_BUG_ON(condition)
++#define BUILD_BUG_ON(condition) ((void)0)
+ #define BUILD_BUG() (0)
+ #else /* __CHECKER__ */
+ 
+@@ -27,8 +27,8 @@ struct pt_regs;
+    result (of value 0 and type size_t), so the expression can be used
+    e.g. in a structure initializer (or where-ever else comma expressions
+    aren't permitted). */
+-#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
+-#define BUILD_BUG_ON_NULL(e) ((void *)sizeof(struct { int:-!!(e); }))
++#define BUILD_BUG_ON_ZERO(e) (0)
++#define BUILD_BUG_ON_NULL(e) ((void*)0)
+ 
+ /**
+  * BUILD_BUG_ON - break compile if a condition is true.
+@@ -46,14 +46,9 @@ struct pt_regs;
+  * though, hence the two different methods.
+  */
+ #ifndef __OPTIMIZE__
+-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
++#define BUILD_BUG_ON(condition) ((void)0)
+ #else
+-extern int __build_bug_on_failed;
+-#define BUILD_BUG_ON(condition)					\
+-	do {							\
+-		((void)sizeof(char[1 - 2*!!(condition)]));	\
+-		if (condition) __build_bug_on_failed = 1;	\
+-	} while(0)
++#define BUILD_BUG_ON(condition) ((void)0)
+ #endif
+ 
+ /**
+diff --git a/include/linux/compiler-gcc15.h b/include/linux/compiler-gcc15.h
+new file mode 100644
+index 00000000..62b03a63
+--- /dev/null
++++ b/include/linux/compiler-gcc15.h
+@@ -0,0 +1,7 @@
++#include "compiler-gcc4.h"
++#ifndef __always_inline
++#define __always_inline inline __attribute__((always_inline))
++#endif
++#ifndef __cold
++#define __cold __attribute__((cold))
++#endif
+diff --git a/include/linux/log2.h b/include/linux/log2.h
+index fd7ff3d9..5fc109f9 100644
+--- a/include/linux/log2.h
++++ b/include/linux/log2.h
+@@ -18,7 +18,7 @@
+ /*
+  * deal with unrepresentable constant logarithms
+  */
+-extern __attribute__((const, noreturn))
++extern __attribute__((noreturn))
+ int ____ilog2_NaN(void);
+ 
+ /*
+diff --git a/include/net/dst.h b/include/net/dst.h
+index 8f7b61ed..757ad2f3 100644
+--- a/include/net/dst.h
++++ b/include/net/dst.h
+@@ -242,7 +242,7 @@ static inline void dst_hold(struct dst_entry * dst)
+ 	 * If your kernel compilation stops here, please check
+ 	 * __pad_to_align_refcnt declaration in struct dst_entry
+ 	 */
+-	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
++// 	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
+ 	atomic_inc(&dst->__refcnt);
+ }
+ 

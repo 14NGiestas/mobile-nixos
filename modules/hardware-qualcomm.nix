@@ -20,6 +20,7 @@ let
     cfg.qualcomm-sdm845.enable
     cfg.qualcomm-sm6125.enable
     cfg.qualcomm-apq8064-1aa.enable
+    cfg.qualcomm-msm8226.enable
   ];
 in
 {
@@ -28,6 +29,11 @@ in
       type = types.bool;
       default = false;
       description = "enable when SOC is APQ8064–1AA";
+    };
+    hardware.socs.qualcomm-msm8226.enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "enable when SOC is msm8226";
     };
     hardware.socs.qualcomm-msm8940.enable = mkOption {
       type = types.bool;
@@ -125,6 +131,11 @@ in
     }
     {
       mobile = mkIf cfg.qualcomm-apq8064-1aa.enable {
+        system.system = "armv7l-linux";
+      };
+    }
+    {
+      mobile = mkIf cfg.qualcomm-msm8226.enable {
         system.system = "armv7l-linux";
       };
     }

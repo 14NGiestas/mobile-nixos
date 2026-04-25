@@ -1,0 +1,12 @@
+= Motorola Moto G (2nd gen)
+include::_support/common.inc[]
+
+== Device-specific notes
+
+=== Firmware
+
+The firmware files are fetched from TheMuppets proprietary vendor repository for Motorola devices.
+The `sha256` hashes for the firmware files in `firmware/default.nix` are empty and need to be filled in.
+
+You can get the hashes by running `nix-prefetch-url <url>` for each file.
+The URLs are in the format: `https://github.com/TheMuppets/proprietary_vendor_motorola/raw/cm-14.1/titan/proprietary/<path-to-file>`.
