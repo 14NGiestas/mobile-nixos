@@ -1,0 +1,21 @@
+# devices/motorola-titan/partitions_8GB.gdisk
+# Moto G 2nd gen (titan) XT1068 - 8GB variant
+
+label: gpt
+label-id: 5E1A6B2C-8D4F-4A9E-B3C1-7F2E8D9A0B1C
+device: /dev/block/mmcblk0
+unit: sectors
+first-lba: 34
+last-lba: 15269887  # 8GB eMMC = ~15.6M setores de 512B
+
+# Critical Partitions (Do not change!) 
+1:start=2048, size=32768, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="boot"
+2:start=34816, size=32768, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="recovery"
+3:start=67584, size=4194304, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="system"
+4:start=4261888, size=409600, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="cache"
+5:start=4671488, size=1048576, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="modem"
+6:start=5720064, size=65536, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="persist"
+7:start=5785600, size=32768, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="fsg"
+
+# userdata: until the end of the eMMC
+8:start=5818368, size=-1, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="userdata"

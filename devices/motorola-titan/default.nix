@@ -70,7 +70,7 @@ in
 
     system.type = "android";
     system.android.flashingMethod = "fastboot";
-
+    
     kernel.structuredConfig = [
       (helpers: with helpers; {
        CC_OPTIMIZE_FOR_PERFORMANCE = no;
