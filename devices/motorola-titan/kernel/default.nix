@@ -17,12 +17,14 @@ mobile-nixos.kernel-builder {
     sha256 = "159yrvnpdff4nyqibx0aidw948ia0m57cnly53h6i7w7llxsclvs";
   };
 
-  patches = [ ./kernel.patch ];
-
+  patches = [ 
+    ./kernel.patch 
+    ./patches/dtbs-install.patch
+  ];
   
   makeFlags = [ 
     "CONFIG_NO_ERROR_ON_MISMATCH=y"
-    "zImage"  # ← ADD THIS: build only the compressed kernel, skip install
+    #"zImage"  # ← ADD THIS: build only the compressed kernel, skip install
   ];
 
   postPatch = ''
