@@ -6,6 +6,7 @@
 mobile-nixos.kernel-builder {
   version = "3.4.113";
   configfile = ./config.armv7l;
+  useStrictKernelConfig = false;
 
   isQcdt = true;
   isModular = true;

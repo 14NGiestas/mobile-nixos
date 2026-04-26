@@ -3,11 +3,11 @@
 let
   # Firmware GPU Adreno 305 para o initramfs (stage-1)
   # Commented out to save ~3-4 MB; can be re-enabled in stage-2 later
-  # qcom-video-firmware = pkgs.runCommand "titan-gpu-firmware" {} ''
-  #   mkdir -p $out/lib/firmware/qcom
-  #   cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pfp.fw $out/lib/firmware/qcom/ 2>/dev/null || true
-  #   cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pm4.fw $out/lib/firmware/qcom/ 2>/dev/null || true
-  # '';
+  qcom-video-firmware = pkgs.runCommand "titan-gpu-firmware" {} ''
+    mkdir -p $out/lib/firmware/qcom
+    cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pfp.fw $out/lib/firmware/qcom/ 2>/dev/null || true
+    cp ${pkgs.linux-firmware}/lib/firmware/qcom/a305_pm4.fw $out/lib/firmware/qcom/ 2>/dev/null || true
+  '';
 in
 {
   # 🔥 Minimal initrd: critical for 10MB boot partition
@@ -55,8 +55,8 @@ in
       name = "Motorola Moto G (2nd gen)";
       manufacturer = "Motorola";
     };
+
     device.supportLevel = "broken";
-    boot.stage-1.extraUtils = lib.mkForce [];
 
     hardware = {
       soc = "qualcomm-msm8226";
@@ -64,11 +64,16 @@ in
       screen = { width = 720; height = 1280; };
     };
 
-    # ❌ Firmware disabled for stage-1 (save space; load in stage-2)
-    # boot.stage-1.firmware = [ qcom-video-firmware ];
-
-    boot.stage-1.kernel = {
-      package = pkgs.callPackage ./kernel { };
+    boot.stage-1 = {
+      kernel = {
+        #firmware = [ qcom-video-firmware ]; # Disabled to save space
+        package = (pkgs.callPackage ./kernel { }).override {
+          useStrictKernelConfig = false;
+        };
+        modular = true;
+      };
+      extraUtils = lib.mkForce [];
+      compression = "gzip";
     };
 
     device.firmware = pkgs.callPackage ./firmware {};
@@ -83,9 +88,6 @@ in
       offset_tags = "00000100";
       pagesize = "2048";
     };
-
-    # ✅ Match initrd compressor to avoid double-compression overhead
-    boot.stage-1.compression = "gzip";
 
     usb = {
       mode = "android_usb";  # Switches to g_android (in-kernel enumeration)
@@ -110,7 +112,6 @@ in
   documentation.man.enable = lib.mkForce false;
   documentation.info.enable = lib.mkForce false;
   environment.defaultPackages = lib.mkForce [];
-  environment.noXlibs = true;
   xdg.icons.enable = false;
   xdg.mime.enable = false;
   xdg.sounds.enable = false;
