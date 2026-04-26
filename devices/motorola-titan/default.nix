@@ -22,6 +22,20 @@ in
     # Disable systemd in stage-1 (saves ~4-6 MB)
     systemd.enable = lib.mkForce false;
     network.enable = lib.mkForce false;
+    postDeviceCommands = ''
+      # Signal that initrd reached device initialization
+      echo "=== DEBUG: Initrd post-device stage reached ===" > /dev/kmsg
+      
+      # Try Qualcomm timed vibrator
+      if [ -e /sys/class/timed_output/vibrator/enable ]; then
+        echo 400 > /sys/class/timed_output/vibrator/enable
+      # Fallback to LED/vibrator via sysfs
+      elif [ -e /sys/class/leds/vibrator/trigger ]; then
+        echo timer > /sys/class/leds/vibrator/trigger
+        sleep 0.4
+        echo none > /sys/class/leds/vibrator/trigger
+      fi
+    '';
   };
 
   # 📡 Console routed to USB UART for headless debugging
