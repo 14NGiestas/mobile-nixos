@@ -3739,3 +3739,36 @@ CONFIG_IPV6_MULTIPLE_TABLES=y
 CONFIG_NETFILTER_XT_MATCH_SOCKET=y
 CONFIG_NF_SOCKET_IPV4=y
 CONFIG_NF_SOCKET_IPV6=y
+
+
+# 🔥 CONSOLE & DEBUG (Visibilidade total)
+CONFIG_PRINTK_TIME=y
+CONFIG_LOG_BUF_SHIFT=18          # Buffer de log maior (256KB)
+CONFIG_DYNAMIC_DEBUG=y           # Habilita /sys/kernel/debug/dynamic_debug/control
+CONFIG_DEBUG_FS=y
+CONFIG_MAGIC_SYSRQ=y             # Ctrl+SysRq via USB serial (ex: echo b > /proc/sysrq-trigger)
+CONFIG_EARLY_PRINTK=y
+
+# 🔥 USB GADGET SERIAL (Console via cabo microUSB)
+CONFIG_USB_G_SERIAL=y            # Cria /dev/ttyGS0
+CONFIG_USB_F_ACM=y               # Função ACM compatível com CDC
+CONFIG_USB_GADGET_CONSOLE=y      # Roteia printk para o gadget USB
+
+# 🔥 FRAMEBUFFER (Debug visual na tela do celular)
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
+CONFIG_VT_CONSOLE=y
+CONFIG_VT_HW_CONSOLE_BINDING=y
+CONFIG_LOGO=y
+CONFIG_LOGO_LINUX_CLUT224=y
+
+# 🔥 REDE & FIREWALL (Obrigatório para stage-1 networking)
+CONFIG_NETFILTER=y
+CONFIG_NETFILTER_XTABLES=y
+CONFIG_NETFILTER_XT_MATCH_CONNLABEL=y
+CONFIG_NETFILTER_XT_MATCH_SOCKET=y
+CONFIG_NF_CONNTRACK=y
+
+# ⚠️ CRÍTICO: Mantenha GZIP. XZ = bootloop.
+CONFIG_KERNEL_GZIP=y
+# CONFIG_KERNEL_XZ is not set

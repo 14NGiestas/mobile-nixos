@@ -9,7 +9,7 @@ mobile-nixos.kernel-builder {
   useStrictKernelConfig = false;
 
   isQcdt = true;
-  isModular = true;
+  isModular = false;
 
   src = fetchFromGitHub {
     owner = "LineageOS";

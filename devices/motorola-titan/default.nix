@@ -10,12 +10,21 @@ let
   '';
 in
 {
-  # 🔥 Minimal initrd: critical for 10MB boot partition
+  boot.kernelParams = lib.mkForce [
+    "earlyprintk"
+    "loglevel=8"
+    "console=ttyHSL0,115200n8"
+    "console=ttyGS0,115200"
+    "usbcore.autosuspend=-1"
+    "androidboot.battid=ignore"
+  ];
+
   boot.initrd = {
     includeDefaultModules = false;
     availableKernelModules = lib.mkForce [
       "mmc_core" "mmc_block" "mmc_msm" "ext4" "jbd2"
     ];
+
     kernelModules = [];
     compressor = "gzip";  # Lower overhead than xz on small archives
     
@@ -38,14 +47,6 @@ in
     '';
   };
 
-  # 📡 Console routed to USB UART for headless debugging
-  boot.kernelParams = lib.mkForce [
-    "earlyprintk" "loglevel=8" "console=ttyHSL0,115200n8"
-    "lsm=landlock,yama,bpf"
-    "usbcore.autosuspend=-1" "usbcore.old_scheme_first=1"
-    "androidboot.battid=ignore"  # Skip battery check (CAF-specific)
-  ];
-
   # 📷 Camera modules: MOVED TO STAGE-2 (not needed for boot)
   # boot.kernelModules = [ "msm_isp" "msm_camera" "media-controller" ];
 
@@ -65,6 +66,24 @@ in
     };
 
     boot.stage-1 = {
+       # 🔥 Visibilidade em tempo real
+    bootlog.kmsg = true;
+    bootlog.enable = true;
+    
+    # 🔥 Acesso remoto via USB
+    networking.enable = true;
+    networking.IP = "172.16.42.2";
+    networking.hostIP = "172.16.42.1";
+    
+    # 🔥 Shell de debug interativo
+    shell.enable = true;
+    shell.console = "ttyGS0";
+    
+    # 🔥 SSH no stage-1 (apenas para debug; desative depois)
+    ssh.enable = true;
+    
+    # 🔥 Funções USB ativadas (RNDIS para rede, ACM para serial)
+    usb.features = ["rndis" "acm" "mtp"];
       kernel = {
         #firmware = [ qcom-video-firmware ]; # Disabled to save space
         package = (pkgs.callPackage ./kernel { }).override {
