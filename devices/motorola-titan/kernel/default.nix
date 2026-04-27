@@ -1,12 +1,13 @@
 { mobile-nixos
 , fetchFromGitHub
+, useStrictKernelConfig ? true
 , ...
 }:
 
 mobile-nixos.kernel-builder {
   version = "3.4.113";
   configfile = ./config.armv7l;
-  useStrictKernelConfig = false;
+  inherit useStrictKernelConfig;
 
   isQcdt = true;
   isModular = false;

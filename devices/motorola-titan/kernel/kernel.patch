@@ -1453,6 +1453,20 @@ index cea93605..d51eecb2 100644
  .endm
  
  	xscale_proc_info 80200_A0_A1, 0x69052000, 0xfffffffe, cpu_80200_name, \
+diff --git a/drivers/usb/gadget/f_acm.c b/drivers/usb/gadget/f_acm.c
+index de54714d..cc24d514 100644
+--- a/drivers/usb/gadget/f_acm.c
++++ b/drivers/usb/gadget/f_acm.c
+@@ -1,3 +1,9 @@
++#ifndef GSERIAL_NO_PORTS
++#define GSERIAL_NO_PORTS 4
++#endif
++#ifndef GSERIAL_NO_PORTS
++#define GSERIAL_NO_PORTS 4
++#endif
+ /*
+  * f_acm.c -- USB CDC serial (ACM) function driver
+  *
 diff --git a/include/linux/bug.h b/include/linux/bug.h
 index cd141a4a..b6ac7d67 100644
 --- a/include/linux/bug.h
