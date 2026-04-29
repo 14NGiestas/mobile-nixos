@@ -16,6 +16,37 @@
     "loglevel=8"
   ];
 
+  boot.initrd = {
+    includeDefaultModules = false;
+    availableKernelModules = lib.mkForce [
+      "mmc_core" "mmc_block" "mmc_msm" "ext4" "jbd2"
+    ];
+    kernelModules = [];
+    compressor = "gzip";
+    
+    postDeviceCommands = ''
+      echo "=== Kernel and initrd loaded ===" > /dev/kmsg
+      # Musical vibration pattern: Morse code SOS (... --- ...)
+      # Short-short-short / Long-long-long / Short-short-short
+      vib_path=""
+      if [ -e /sys/class/timed_output/vibrator/enable ]; then
+        vib_path="/sys/class/timed_output/vibrator/enable"
+      elif [ -e /sys/class/leds/vibrator/trigger ]; then
+        vib_path="/sys/class/leds/vibrator"
+      fi
+      
+      if [ -n "$vib_path" ] && [ -e "$vib_path" ]; then
+        # SOS pattern: . . . - - - . . .
+        # Short (100ms) / Long (300ms)
+        for i in 1 2 3; do echo 100 > "$vib_path"; sleep 0.15; done  # S: ...
+        sleep 0.2
+        for i in 1 2 3; do echo 300 > "$vib_path"; sleep 0.4; done   # O: ---
+        sleep 0.2
+        for i in 1 2 3; do echo 100 > "$vib_path"; sleep 0.15; done  # S: ...
+      fi
+    '';
+  };
+
   mobile.boot.stage-1 = {
     kernel = {
       package = pkgs.callPackage ./kernel { };
@@ -41,12 +72,8 @@
     offset_tags = "0x00000100";
     pagesize = "2048";
   };
-  mobile.system.android.bootimg.dt = lib.mkForce null;
-  
-  # Use Titan DTB from lk2nd build (contains QCDT device tree selection info)
-  mobile.system.android.appendDTB = lib.mkDefault [
-    "${pkgs.lk2ndMsm8226}/dtb/msm8226-motorola-titan.dtb"
-  ];
+  # Let the bootloader provide its own DTB - don't override
+  # The mainline kernel should work with the bootloader's DTB
 
   mobile.quirks.qualcomm.wcnss-wlan.enable = true;
 }
