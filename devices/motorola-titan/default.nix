@@ -9,18 +9,12 @@ let
 in
 {
   # 🔥 Android/Qualcomm boot params (from deviceinfo + pmOS wiki)
+  # These are overridden in local.nix to include root filesystem parameters
   boot.kernelParams = lib.mkForce [
-    "earlyprintk"
-    "loglevel=8"
-    "console=ttyHSL0,115200n8"
-    "console=ttyGS0,115200"
-    "usbcore.autosuspend=-1"
-    "androidboot.battid=ignore"
     "androidboot.bootdevice=msm_sdcc.1"
     "androidboot.hardware=qcom"
     "vmalloc=400M"
     "utags.blkdev=/dev/block/platform/msm_sdcc.1/by-name/utags"
-    "buildvariant=userdebug"
   ];
 
   # 🔥 Minimal initrd for 10MB boot partition
@@ -66,11 +60,11 @@ in
       networking.enable = true;
       networking.IP = "172.16.42.2";
       networking.hostIP = "172.16.42.1";
-      ssh.enable = false;
+      ssh.enable = true;
       usb.features = [ "rndis" "acm" ];
       gui.enable = false;
-      bootlog.enable = false;
-      bootlog.kmsg = false;
+      bootlog.enable = true;
+      bootlog.kmsg = true;
       
       kernel = {
         package = pkgs.callPackage ./kernel { useStrictKernelConfig = false; };
@@ -78,7 +72,7 @@ in
       };
       
       compression = "gzip";
-      extraUtils = lib.mkForce [];
+      # extraUtils is configured in local.nix to ensure proper stage-1 tools
     };
 
     device.firmware = pkgs.callPackage ./firmware {};
@@ -93,6 +87,7 @@ in
       offset_tags = "00000100";
       pagesize = "2048";
     };
+    system.android.bootimg.dt = lib.mkForce null;
 
     usb = {
       mode = "android_usb";  # g_android (downstream)
