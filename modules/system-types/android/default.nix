@@ -20,6 +20,7 @@ let
     name = "mobile-nixos_${device.name}_${bootimg.name}";
     kernel = "${kernelPackage}/${kernelPackage.file}";
     inherit (config.mobile.system.android) appendDTB;
+    second = config.mobile.system.android.bootimg.second;
   };
 
   android-recovery = recovery.mobile.outputs.android.android-bootimg;
@@ -151,6 +152,13 @@ in
           type = types.nullOr types.path;
           default = null;
           description = "Path to a flattened device tree to pass as --dt to mkbootimg";
+          internal = true;
+        };
+
+        second = lib.mkOption {
+          type = types.nullOr types.path;
+          default = null;
+          description = "Path to second-stage bootloader (e.g., lk2nd) to embed in boot image";
           internal = true;
         };
 

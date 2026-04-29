@@ -88,6 +88,8 @@ in
       pagesize = "2048";
     };
     system.android.bootimg.dt = lib.mkForce null;  # lk2nd provides DTB from bootloader
+    # Embed lk2nd as second-stage bootloader in boot image
+    system.android.bootimg.second = lib.mkDefault "${pkgs.lk2ndMsm8226}/lk2nd.img";
     
     # Use Titan DTB from lk2nd build (required for lk2nd to accept kernel)
     system.android.appendDTB = lib.mkDefault [

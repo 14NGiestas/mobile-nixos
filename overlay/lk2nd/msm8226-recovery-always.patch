@@ -1,0 +1,12 @@
+--- a/app/aboot/aboot.c
++++ b/app/aboot/aboot.c
+@@ -5519,6 +5519,9 @@ void aboot_init(const struct app_descriptor *app)
+ 		lk2nd_init();
+ #endif
+ 
++	/* lk2nd MSM8226: Always boot to recovery mode for ADB access on Titan */
++	boot_into_recovery = 1;
++
+ 	/* Display splash screen if enabled */
+ #if DISPLAY_SPLASH_SCREEN
+ #if NO_ALARM_DISPLAY

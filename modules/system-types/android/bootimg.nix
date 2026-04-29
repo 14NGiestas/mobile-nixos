@@ -8,6 +8,7 @@
 , cmdline
 , bootimg
 , appendDTB
+, second ? null  # Optional second-stage bootloader (e.g., lk2nd)
 }:
 
 let
@@ -38,6 +39,7 @@ pkgs.runCommand name {
     --kernel  $kernel \
     ${optionalString (bootimg.dt != null) "--dt ${bootimg.dt}"} \
     --ramdisk ${initrd} \
+    ${optionalString (second != null) "--second ${second}"} \
     --cmdline       "${cmdline}" \
     --base           ${bootimg.flash.offset_base   } \
     --kernel_offset  ${bootimg.flash.offset_kernel } \
