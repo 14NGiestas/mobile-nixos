@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..cf0b860 100644
+index a451443..4947e6f 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,94 @@
@@ -149,7 +149,7 @@ index a451443..cf0b860 100644
  #if USE_PON_REBOOT_REG
  	reboot_mode = check_hard_reboot_mode();
  #else
-@@ -5650,14 +5753,38 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5650,14 +5753,45 @@ void aboot_init(const struct app_descriptor *app)
  	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
  #endif
  
@@ -161,6 +161,13 @@ index a451443..cf0b860 100644
  	{
 +		/* CP6: 7 pulses */
 +		DEBUG_CHECKPOINT_6();
++
++		/* MARKER: Two long buzzes to confirm CP6 reached */
++		vib_timed_turn_on(500);
++		mdelay(500);
++		vib_timed_turn_on(500);
++		mdelay(2000);
++		dprintf(INFO, "lk2nd: CP6 CONFIRMED - Two long buzzes\n");
 +
 +		/* CP6.1: After CP6, before lk2nd_boot */
 +		for (int i = 0; i < 7; i++) {
@@ -188,7 +195,7 @@ index a451443..cf0b860 100644
  		if (target_is_emmc_boot())
  		{
  			if(!IS_ENABLED(ABOOT_STANDALONE) && emmc_recovery_init())
-@@ -5675,17 +5802,29 @@ normal_boot:
+@@ -5675,17 +5809,29 @@ normal_boot:
  				}
  			}
  
