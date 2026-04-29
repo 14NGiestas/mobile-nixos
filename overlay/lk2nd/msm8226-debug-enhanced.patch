@@ -1,35 +1,29 @@
---- a/app/aboot/aboot.c	2026-04-29 18:23:17.641482184 -0300
-+++ b/app/aboot/aboot.c	2026-04-29 18:27:18.817903003 -0300
-@@ -5498,6 +5498,32 @@
+diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
+index a451443..0fc5b0e 100644
+--- a/app/aboot/aboot.c
++++ b/app/aboot/aboot.c
+@@ -5498,6 +5498,17 @@ void aboot_init(const struct app_descriptor *app)
  	msm_wdog_init();
  #endif
  
-+	/* Debug vibrations - checkpoint map:
-+	 * CP1: Startup (50ms, 100ms pause, 50ms)
-+	 * CP2: Page size setup done (100ms, 100ms pause)
-+	 * CP3: Device info read done (100ms, 100ms pause, 100ms)
-+	 * CP4: Key detection done (200ms, 100ms pause)
-+	 * CP5: About to call lk2nd_boot (100ms, 50ms pause, 100ms)
-+	 * CP6: Boot partition selected (150ms, 100ms pause)
-+	 * CP7: About to call boot_linux_from_mmc (100ms, 200ms pause, 50ms, 50ms pause, 50ms)
-+	 */
++	/* Debug vibrations - 7 checkpoints to map boot sequence */
 +	volatile uint32_t *vibrator = (volatile uint32_t *)0xfd900640;
 +	
-+	/* CP1: Startup */
++	/* CP1: Startup reached */
 +	if (vibrator) {
 +		*vibrator = 50;
 +		mdelay(100);
 +		*vibrator = 50;
 +		dprintf(INFO, "lk2nd: CP1 - Startup\n");
 +	}
- 
++
  	/* Setup page size information for nv storage */
  	if (target_is_emmc_boot())
-@@ -5512,6 +5538,15 @@
- 		page_mask = flash_page_size() - 1;
+ 	{
+@@ -5513,6 +5524,15 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	ASSERT((MEMBASE + MEMSIZE) > MEMBASE);
-+	
+ 
 +	/* CP2: Page size setup done */
 +	if (vibrator) {
 +		*vibrator = 100;
@@ -38,14 +32,14 @@
 +		mdelay(100);
 +		dprintf(INFO, "lk2nd: CP2 - Page size setup\n");
 +	}
- 
++
  #if !ABOOT_STANDALONE
  	read_device_info(&device);
-@@ -5519,6 +5554,14 @@
- #else
+ 	read_allow_oem_unlock(&device);
+@@ -5520,6 +5540,15 @@ void aboot_init(const struct app_descriptor *app)
  	device.is_unlocked = true;
  #endif
-+	
+ 
 +	/* CP3: Device info read done */
 +	if (vibrator) {
 +		*vibrator = 100;
@@ -54,10 +48,11 @@
 +		mdelay(100);
 +		dprintf(INFO, "lk2nd: CP3 - Device info read\n");
 +	}
- 
++
  	/* Detect multi-slot support */
  	if (partition_multislot_is_supported())
-@@ -5601,6 +5644,13 @@
+ 	{
+@@ -5592,6 +5621,14 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	if (!boot_into_fastboot)
  	{
@@ -68,11 +63,11 @@
 +			*vibrator = 0;
 +			dprintf(INFO, "lk2nd: CP4 - Key detection done\n");
 +		}
-+		
++
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
-@@ -5661,6 +5711,13 @@
+@@ -5653,6 +5690,14 @@ void aboot_init(const struct app_descriptor *app)
  normal_boot:
  	if (!boot_into_fastboot)
  	{
@@ -83,14 +78,31 @@
 +			*vibrator = 100;
 +			dprintf(INFO, "lk2nd: CP5 - About to call lk2nd_boot\n");
 +		}
++
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5684,10 +5741,20 @@
- 			if (boot_slot == INVALID)
- 				goto fastboot;
- 		}
-+		
+@@ -5676,16 +5721,36 @@ normal_boot:
+ 			}
+ 
+ retry_boot:
+-			/* Trying to boot active partition */
+-			if (partition_multislot_is_supported())
+-			{
+-				boot_slot = partition_find_boot_slot();
+-				partition_mark_active_slot(boot_slot);
+-				if (boot_slot == INVALID)
+-					goto fastboot;
+-			}
++		/* Trying to boot active partition */
++		if (partition_multislot_is_supported())
++		{
++			boot_slot = partition_find_boot_slot();
++			partition_mark_active_slot(boot_slot);
++			if (boot_slot == INVALID)
++				goto fastboot;
++		}
++
 +		/* CP6: Boot partition selected */
 +		if (vibrator) {
 +			*vibrator = 150;
@@ -98,18 +110,21 @@
 +			*vibrator = 0;
 +			dprintf(INFO, "lk2nd: CP6 - Boot partition selected\n");
 +		}
++
++		/* CP7: About to call boot_linux_from_mmc */
++		if (vibrator) {
++			*vibrator = 100;
++			mdelay(200);
++			*vibrator = 50;
++			mdelay(50);
++			*vibrator = 50;
++			mdelay(50);
++			*vibrator = 0;
++			dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
++		}
  
--	/* Debug: about to call boot_linux */
-+	/* CP7: About to call boot_linux_from_mmc */
- 	if (vibrator) {
- 		*vibrator = 100;  /* Long vibration before boot attempt */
- 		mdelay(200);
- 		*vibrator = 50;
- 		mdelay(50);
- 		*vibrator = 50;
-+		mdelay(50);
-+		*vibrator = 0;
-+		dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
- 	}
- 
- 		boot_err_type = boot_linux_from_mmc();
+-			boot_err_type = boot_linux_from_mmc();
++		boot_err_type = boot_linux_from_mmc();
+ 			switch (boot_err_type)
+ 			{
+ 				case ERR_INVALID_PAGE_SIZE:
