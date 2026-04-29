@@ -1,88 +1,81 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..0fc5b0e 100644
+index a451443..0f38f99 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
-@@ -5498,6 +5498,17 @@ void aboot_init(const struct app_descriptor *app)
+@@ -95,6 +95,7 @@
+ #include <menu_keys_detect.h>
+ #include <display_menu.h>
+ #include "fastboot_test.h"
++#include <vibrator.h>
+ 
+ #if WITH_LK2ND
+ #include <lk2nd/init.h>
+@@ -5498,6 +5499,13 @@ void aboot_init(const struct app_descriptor *app)
  	msm_wdog_init();
  #endif
  
-+	/* Debug vibrations - 7 checkpoints to map boot sequence */
-+	volatile uint32_t *vibrator = (volatile uint32_t *)0xfd900640;
-+	
++	/* Debug vibrations - 7 checkpoints with proper vibrator API */
 +	/* CP1: Startup reached */
-+	if (vibrator) {
-+		*vibrator = 50;
-+		mdelay(100);
-+		*vibrator = 50;
-+		dprintf(INFO, "lk2nd: CP1 - Startup\n");
-+	}
++	vib_timed_turn_on(50);
++	mdelay(100);
++	vib_timed_turn_on(50);
++	dprintf(INFO, "lk2nd: CP1 - Startup\n");
 +
  	/* Setup page size information for nv storage */
  	if (target_is_emmc_boot())
  	{
-@@ -5513,6 +5524,15 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5513,6 +5521,11 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	ASSERT((MEMBASE + MEMSIZE) > MEMBASE);
  
 +	/* CP2: Page size setup done */
-+	if (vibrator) {
-+		*vibrator = 100;
-+		mdelay(100);
-+		*vibrator = 0;
-+		mdelay(100);
-+		dprintf(INFO, "lk2nd: CP2 - Page size setup\n");
-+	}
++	vib_timed_turn_on(100);
++	mdelay(100);
++	dprintf(INFO, "lk2nd: CP2 - Page size setup\n");
 +
  #if !ABOOT_STANDALONE
  	read_device_info(&device);
  	read_allow_oem_unlock(&device);
-@@ -5520,6 +5540,15 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5520,6 +5533,13 @@ void aboot_init(const struct app_descriptor *app)
  	device.is_unlocked = true;
  #endif
  
 +	/* CP3: Device info read done */
-+	if (vibrator) {
-+		*vibrator = 100;
-+		mdelay(100);
-+		*vibrator = 100;
-+		mdelay(100);
-+		dprintf(INFO, "lk2nd: CP3 - Device info read\n");
-+	}
++	vib_timed_turn_on(100);
++	mdelay(100);
++	vib_timed_turn_on(100);
++	mdelay(100);
++	dprintf(INFO, "lk2nd: CP3 - Device info read\n");
 +
  	/* Detect multi-slot support */
  	if (partition_multislot_is_supported())
  	{
-@@ -5592,6 +5621,14 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5592,6 +5612,11 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	if (!boot_into_fastboot)
  	{
 +		/* CP4: Key detection done */
-+		if (vibrator) {
-+			*vibrator = 200;
-+			mdelay(100);
-+			*vibrator = 0;
-+			dprintf(INFO, "lk2nd: CP4 - Key detection done\n");
-+		}
++		vib_timed_turn_on(200);
++		mdelay(100);
++		dprintf(INFO, "lk2nd: CP4 - Key detection done\n");
 +
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
-@@ -5653,6 +5690,14 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5653,6 +5678,12 @@ void aboot_init(const struct app_descriptor *app)
  normal_boot:
  	if (!boot_into_fastboot)
  	{
 +		/* CP5: About to call lk2nd_boot */
-+		if (vibrator) {
-+			*vibrator = 100;
-+			mdelay(50);
-+			*vibrator = 100;
-+			dprintf(INFO, "lk2nd: CP5 - About to call lk2nd_boot\n");
-+		}
++		vib_timed_turn_on(100);
++		mdelay(50);
++		vib_timed_turn_on(100);
++		dprintf(INFO, "lk2nd: CP5 - About to call lk2nd_boot\n");
 +
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5721,36 @@ normal_boot:
+@@ -5676,16 +5707,30 @@ normal_boot:
  			}
  
  retry_boot:
@@ -104,24 +97,18 @@ index a451443..0fc5b0e 100644
 +		}
 +
 +		/* CP6: Boot partition selected */
-+		if (vibrator) {
-+			*vibrator = 150;
-+			mdelay(100);
-+			*vibrator = 0;
-+			dprintf(INFO, "lk2nd: CP6 - Boot partition selected\n");
-+		}
++		vib_timed_turn_on(150);
++		mdelay(100);
++		dprintf(INFO, "lk2nd: CP6 - Boot partition selected\n");
 +
-+		/* CP7: About to call boot_linux_from_mmc */
-+		if (vibrator) {
-+			*vibrator = 100;
-+			mdelay(200);
-+			*vibrator = 50;
-+			mdelay(50);
-+			*vibrator = 50;
-+			mdelay(50);
-+			*vibrator = 0;
-+			dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
-+		}
++		/* CP7: About to call boot_linux_from_mmc - CRITICAL CHECKPOINT */
++		vib_timed_turn_on(100);
++		mdelay(200);
++		vib_timed_turn_on(50);
++		mdelay(50);
++		vib_timed_turn_on(50);
++		mdelay(50);
++		dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
  
 -			boot_err_type = boot_linux_from_mmc();
 +		boot_err_type = boot_linux_from_mmc();
