@@ -101,6 +101,8 @@ in
     };
 
     system.type = "android";
+    # Note: lk2nd should be flashed to bootloader partition first (one-time)
+    # After that, regular boot.img with kernel can be flashed to boot partition
     system.android.flashingMethod = "fastboot";
     
     kernel.structuredConfig = [
