@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..3141abd 100644
+index a451443..cadc022 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,94 @@
@@ -8,21 +8,22 @@ index a451443..3141abd 100644
  #include "fastboot_test.h"
 +#include <vibrator.h>
 +
-+/* Debug checkpoint macros - each checkpoint is EXACTLY 2 seconds */
++/* Debug checkpoint macros - simple vibration streams with 2 second pauses between */
 +#define DEBUG_CHECKPOINT_0() \
 +	do { \
-+		vib_timed_turn_on(1000); \
-+		mdelay(1000); \
++		vib_timed_turn_on(2000); \
++		mdelay(2000); \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP0\n"); \
 +	} while(0)
 +
++/* Rapid pulse stream - rapid short timed vibrations for N pulses */
 +#define DEBUG_CHECKPOINT_1() \
 +	do { \
 +		int i; \
 +		for (i = 0; i < 2; i++) { \
-+			vib_timed_turn_on(500); \
-+			mdelay(500); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP1\n"); \
@@ -32,10 +33,9 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 3; i++) { \
-+			vib_timed_turn_on(333); \
-+			mdelay(333); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
-+		mdelay(334); \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP2\n"); \
 +	} while(0)
@@ -44,8 +44,8 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 4; i++) { \
-+			vib_timed_turn_on(250); \
-+			mdelay(250); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP3\n"); \
@@ -55,8 +55,8 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 5; i++) { \
-+			vib_timed_turn_on(200); \
-+			mdelay(200); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP4\n"); \
@@ -66,8 +66,8 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 6; i++) { \
-+			vib_timed_turn_on(167); \
-+			mdelay(167); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP5\n"); \
@@ -77,8 +77,8 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 7; i++) { \
-+			vib_timed_turn_on(143); \
-+			mdelay(143); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP6\n"); \
@@ -88,8 +88,8 @@ index a451443..3141abd 100644
 +	do { \
 +		int i; \
 +		for (i = 0; i < 8; i++) { \
-+			vib_timed_turn_on(125); \
-+			mdelay(125); \
++			vib_timed_turn_on(50); \
++			mdelay(100); \
 +		} \
 +		mdelay(2000); \
 +		dprintf(INFO, "lk2nd: CP7\n"); \
