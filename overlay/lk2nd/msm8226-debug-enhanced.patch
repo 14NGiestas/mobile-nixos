@@ -1,128 +1,94 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..6f64b13 100644
+index a451443..3a79d6b 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
-@@ -95,6 +95,7 @@
+@@ -95,6 +95,19 @@
  #include <menu_keys_detect.h>
  #include <display_menu.h>
  #include "fastboot_test.h"
 +#include <vibrator.h>
++
++/* Debug checkpoint pulse macro - count pulses to identify checkpoint */
++#define DEBUG_CHECKPOINT(pulse_count, checkpoint_num) \
++	do { \
++		int i; \
++		for (i = 0; i < (pulse_count); i++) { \
++			vib_timed_turn_on(50); \
++			if (i < (pulse_count) - 1) mdelay(50); \
++		} \
++		mdelay(2000); \
++		dprintf(INFO, "lk2nd: CP%d - %d pulses\n", checkpoint_num, pulse_count); \
++	} while(0)
  
  #if WITH_LK2ND
  #include <lk2nd/init.h>
-@@ -5498,6 +5499,24 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5498,6 +5511,9 @@ void aboot_init(const struct app_descriptor *app)
  	msm_wdog_init();
  #endif
  
-+	/* DEBUG: CP0 - Right after wdog init, before any memory setup */
-+	vib_timed_turn_on(150);
-+	mdelay(2000);  /* Long pause to distinguish from CP1 */
-+	dprintf(INFO, "lk2nd: CP0 - After wdog init\n");
-+
-+	/* Debug vibrations - 7 checkpoints with proper vibrator API */
-+	/* CP1: Startup reached */
-+	vib_timed_turn_on(50);
-+	mdelay(100);
-+	vib_timed_turn_on(50);
-+	mdelay(2000);  /* Long pause after CP1 */
-+	dprintf(INFO, "lk2nd: CP1 - Startup\n");
-+
-+	/* CP1.5 - About to setup page size */
-+	vib_timed_turn_on(75);
-+	mdelay(2000);  /* Long pause after CP1.5 */
-+	dprintf(INFO, "lk2nd: CP1.5 - About to setup page size\n");
++	/* CP0: 1 pulse */
++	DEBUG_CHECKPOINT(1, 0);
 +
  	/* Setup page size information for nv storage */
  	if (target_is_emmc_boot())
  	{
-@@ -5513,6 +5532,12 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5513,6 +5529,9 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	ASSERT((MEMBASE + MEMSIZE) > MEMBASE);
  
-+	/* CP2: Page size setup done */
-+	vib_timed_turn_on(100);
-+	mdelay(100);
-+	mdelay(2000);  /* Long pause */
-+	dprintf(INFO, "lk2nd: CP2 - Page size setup\n");
++	/* CP1: 2 pulses */
++	DEBUG_CHECKPOINT(2, 1);
 +
  #if !ABOOT_STANDALONE
  	read_device_info(&device);
  	read_allow_oem_unlock(&device);
-@@ -5520,6 +5545,14 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5520,6 +5539,9 @@ void aboot_init(const struct app_descriptor *app)
  	device.is_unlocked = true;
  #endif
  
-+	/* CP3: Device info read done */
-+	vib_timed_turn_on(100);
-+	mdelay(100);
-+	vib_timed_turn_on(100);
-+	mdelay(100);
-+	mdelay(2000);  /* Long pause */
-+	dprintf(INFO, "lk2nd: CP3 - Device info read\n");
++	/* CP2: 3 pulses */
++	DEBUG_CHECKPOINT(3, 2);
 +
  	/* Detect multi-slot support */
  	if (partition_multislot_is_supported())
  	{
-@@ -5592,17 +5625,34 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5592,6 +5614,9 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	if (!boot_into_fastboot)
  	{
-+		/* CP4: Key detection done */
-+		vib_timed_turn_on(200);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP4 - Key detection done\n");
++		/* CP3: 4 pulses */
++		DEBUG_CHECKPOINT(4, 3);
 +
-+		/* CP4.1: After keys_get_state checks */
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
- 			(keys_get_state(KEY_HOME) || keys_get_state(KEY_BACK) || keys_get_state(KEY_VOLUMEDOWN)))
- 			boot_into_fastboot = true;
-+
-+		vib_timed_turn_on(50);
-+		mdelay(50);
-+		vib_timed_turn_on(50);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP4.1 - Key state checks done\n");
- 	}
- 	#if NO_KEYPAD_DRIVER
- 	if (fastboot_trigger())
+@@ -5603,6 +5628,9 @@ void aboot_init(const struct app_descriptor *app)
  		boot_into_fastboot = true;
  	#endif
  
-+	/* CP4.2: After NO_KEYPAD_DRIVER check */
-+	vib_timed_turn_on(75);
-+	mdelay(2000);
-+	dprintf(INFO, "lk2nd: CP4.2 - After NO_KEYPAD_DRIVER\n");
++	/* CP4: 5 pulses */
++	DEBUG_CHECKPOINT(5, 4);
 +
  #if USE_PON_REBOOT_REG
  	reboot_mode = check_hard_reboot_mode();
  #else
-@@ -5650,9 +5700,23 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5650,9 +5678,15 @@ void aboot_init(const struct app_descriptor *app)
  	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
  #endif
  
-+	/* CP4.3: After all reboot mode checks, before normal_boot label */
-+	vib_timed_turn_on(100);
-+	mdelay(50);
-+	vib_timed_turn_on(100);
-+	mdelay(2000);
-+	dprintf(INFO, "lk2nd: CP4.3 - All reboot checks done\n");
++	/* CP5: 6 pulses */
++	DEBUG_CHECKPOINT(6, 5);
 +
  normal_boot:
  	if (!boot_into_fastboot)
  	{
-+		/* CP5: About to call lk2nd_boot */
-+		vib_timed_turn_on(100);
-+		mdelay(50);
-+		vib_timed_turn_on(100);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP5 - About to call lk2nd_boot\n");
++		/* CP6: 7 pulses */
++		DEBUG_CHECKPOINT(7, 6);
 +
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5740,30 @@ normal_boot:
+@@ -5676,16 +5710,19 @@ normal_boot:
  			}
  
  retry_boot:
@@ -143,19 +109,8 @@ index a451443..6f64b13 100644
 +				goto fastboot;
 +		}
 +
-+		/* CP6: Boot partition selected */
-+		vib_timed_turn_on(150);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP6 - Boot partition selected\n");
-+
-+		/* CP7: About to call boot_linux_from_mmc - CRITICAL CHECKPOINT */
-+		vib_timed_turn_on(100);
-+		mdelay(200);
-+		vib_timed_turn_on(50);
-+		mdelay(50);
-+		vib_timed_turn_on(50);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
++		/* CP7: 8 pulses */
++		DEBUG_CHECKPOINT(8, 7);
  
 -			boot_err_type = boot_linux_from_mmc();
 +		boot_err_type = boot_linux_from_mmc();
