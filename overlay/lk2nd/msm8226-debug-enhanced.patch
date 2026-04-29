@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..fe14787 100644
+index a451443..6f64b13 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,7 @@
@@ -63,19 +63,52 @@ index a451443..fe14787 100644
  	/* Detect multi-slot support */
  	if (partition_multislot_is_supported())
  	{
-@@ -5592,6 +5625,11 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5592,17 +5625,34 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	if (!boot_into_fastboot)
  	{
 +		/* CP4: Key detection done */
 +		vib_timed_turn_on(200);
-+		mdelay(100);
++		mdelay(2000);
 +		dprintf(INFO, "lk2nd: CP4 - Key detection done\n");
 +
++		/* CP4.1: After keys_get_state checks */
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
-@@ -5653,6 +5691,13 @@ void aboot_init(const struct app_descriptor *app)
+ 			(keys_get_state(KEY_HOME) || keys_get_state(KEY_BACK) || keys_get_state(KEY_VOLUMEDOWN)))
+ 			boot_into_fastboot = true;
++
++		vib_timed_turn_on(50);
++		mdelay(50);
++		vib_timed_turn_on(50);
++		mdelay(2000);
++		dprintf(INFO, "lk2nd: CP4.1 - Key state checks done\n");
+ 	}
+ 	#if NO_KEYPAD_DRIVER
+ 	if (fastboot_trigger())
+ 		boot_into_fastboot = true;
+ 	#endif
+ 
++	/* CP4.2: After NO_KEYPAD_DRIVER check */
++	vib_timed_turn_on(75);
++	mdelay(2000);
++	dprintf(INFO, "lk2nd: CP4.2 - After NO_KEYPAD_DRIVER\n");
++
+ #if USE_PON_REBOOT_REG
+ 	reboot_mode = check_hard_reboot_mode();
+ #else
+@@ -5650,9 +5700,23 @@ void aboot_init(const struct app_descriptor *app)
+ 	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
+ #endif
+ 
++	/* CP4.3: After all reboot mode checks, before normal_boot label */
++	vib_timed_turn_on(100);
++	mdelay(50);
++	vib_timed_turn_on(100);
++	mdelay(2000);
++	dprintf(INFO, "lk2nd: CP4.3 - All reboot checks done\n");
++
  normal_boot:
  	if (!boot_into_fastboot)
  	{
@@ -89,7 +122,7 @@ index a451443..fe14787 100644
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5721,30 @@ normal_boot:
+@@ -5676,16 +5740,30 @@ normal_boot:
  			}
  
  retry_boot:
