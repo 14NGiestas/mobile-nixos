@@ -25,20 +25,33 @@
     compressor = "gzip";
     
     postDeviceCommands = ''
-      # Quick vibration pattern to confirm boot
-      vib_path=""
-      if [ -e /sys/class/timed_output/vibrator/enable ]; then
-        vib_path="/sys/class/timed_output/vibrator/enable"
-      elif [ -e /sys/class/leds/vibrator/trigger ]; then
-        vib_path="/sys/class/leds/vibrator"
-      fi
+      vib() {
+        local duration=$1
+        if [ -e /sys/class/timed_output/vibrator/enable ]; then
+          echo $duration > /sys/class/timed_output/vibrator/enable
+        elif [ -e /sys/class/leds/vibrator/trigger ]; then
+          echo $duration > /sys/class/leds/vibrator
+        fi
+      }
       
-      if [ -n "$vib_path" ] && [ -e "$vib_path" ]; then
-        # Quick double-tap: 50ms on, 50ms off, 50ms on
-        echo 50 > "$vib_path"
-        sleep 0.1
-        echo 50 > "$vib_path"
-      fi
+      # Stage 1: initrd reached
+      vib 100
+      sleep 0.5
+      
+      # Try to set up basic filesystems
+      [ -d /sys ] || mount -t sysfs sysfs /sys 2>/dev/null
+      [ -d /proc ] || mount -t proc proc /proc 2>/dev/null
+      [ -d /dev ] || mount -t devtmpfs devtmpfs /dev 2>/dev/null
+      
+      # Stage 2: filesystems mounted
+      vib 100
+      sleep 0.5
+      
+      # Try to load USB modules
+      modprobe g_serial 2>/dev/null || true
+      
+      # Stage 3: USB attempted
+      vib 100
     '';
   };
 

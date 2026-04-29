@@ -1,0 +1,19 @@
+--- a/app/aboot/aboot.c	2026-04-29 18:23:17.641482184 -0300
++++ b/app/aboot/aboot.c	2026-04-29 18:23:56.810600036 -0300
+@@ -5498,6 +5498,16 @@
+ 	msm_wdog_init();
+ #endif
+ 
++	/* Debug vibrations - signal lk2nd startup */
++	volatile uint32_t *vibrator = (volatile uint32_t *)0xfd900640;
++	if (vibrator) {
++		*vibrator = 50;
++		mdelay(100);
++		*vibrator = 50;
++		dprintf(INFO, "lk2nd: Vibrator startup signal sent\n");
++	}
++
++
+ 	/* Setup page size information for nv storage */
+ 	if (target_is_emmc_boot())
+ 	{

@@ -36,9 +36,12 @@ stdenv.mkDerivation {
   dontConfigure = true;
 
   # Patch the dtbTool and mkbootimg scripts to handle individual file arguments
-  postPatch = ''
-    # Use patchShebangs to fix all Python/shell shebangs in scripts
-    patchShebangs lk2nd/scripts/
+   postPatch = ''
+     # Use patchShebangs to fix all Python/shell shebangs in scripts
+     patchShebangs lk2nd/scripts/
+     
+     # Apply enhanced debug patch (multiple checkpoints with vibrations)
+     patch -p1 < ${./msm8226-debug-enhanced.patch}
     
     # Patch dtbTool to convert individual file arguments to directory format
     # The source script expects a directory, but the Makefile passes individual .dtb files

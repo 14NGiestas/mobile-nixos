@@ -1,0 +1,36 @@
+--- a/app/aboot/aboot.c	2026-04-29 18:23:17.641482184 -0300
++++ b/app/aboot/aboot.c	2026-04-29 18:27:18.817903003 -0300
+@@ -5498,6 +5498,16 @@
+ 	msm_wdog_init();
+ #endif
+ 
++	/* Debug vibrations - signal lk2nd startup */
++	volatile uint32_t *vibrator = (volatile uint32_t *)0xfd900640;
++	if (vibrator) {
++		*vibrator = 50;
++		mdelay(100);
++		*vibrator = 50;
++		dprintf(INFO, "lk2nd: Vibrator startup signal sent\n");
++	}
++
++
+ 	/* Setup page size information for nv storage */
+ 	if (target_is_emmc_boot())
+ 	{
+@@ -5685,6 +5695,16 @@
+ 					goto fastboot;
+ 			}
+ 
++	/* Debug: about to call boot_linux */
++	if (vibrator) {
++		*vibrator = 100;  /* Long vibration before boot attempt */
++		mdelay(200);
++		*vibrator = 50;
++		mdelay(50);
++		*vibrator = 50;
++		dprintf(INFO, "lk2nd: About to boot kernel\n");
++	}
++
+ 			boot_err_type = boot_linux_from_mmc();
+ 			switch (boot_err_type)
+ 			{
