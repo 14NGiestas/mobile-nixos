@@ -42,6 +42,11 @@
     pagesize = "2048";
   };
   mobile.system.android.bootimg.dt = lib.mkForce null;
+  
+  # Use Titan DTB from lk2nd build (contains QCDT device tree selection info)
+  mobile.system.android.appendDTB = lib.mkDefault [
+    "${pkgs.lk2ndMsm8226}/dtb/msm8226-motorola-titan.dtb"
+  ];
 
   mobile.quirks.qualcomm.wcnss-wlan.enable = true;
 }
