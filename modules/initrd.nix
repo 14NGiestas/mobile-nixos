@@ -78,6 +78,25 @@ let
 
   bootConfigFile = writeText "${device_name}-boot-config" (toJSON config.mobile.boot.stage-1.bootConfig);
 
+  # When customInit is provided, use it but keep the wrapper for early scripts
+  initContents = 
+    if stage-1.customInit != null then
+      # Custom init: replace init.mrb but keep initWrapper (for early setup)
+      # and a wrapper loader that calls our custom init directly
+      [
+        { object = "${extraUtils}/bin/loader"; symlink = "/loader"; }
+        { object = initWrapper; symlink = "/init"; }
+        { object = stage-1.customInit; symlink = "/init.mrb"; }
+      ]
+    else
+      # Default: use initWrapper + loader + init.mrb
+      [
+        { object = "${extraUtils}/bin/loader"; symlink = "/loader"; }
+        { object = initWrapper; symlink = "/init"; }
+        { object = "${mobile-nixos-init}/libexec/init.mrb"; symlink = "/init.mrb"; }
+      ]
+  ;
+
   contents =
     (optionals (stage-1 ? contents) (flatten stage-1.contents))
     ++ [
@@ -89,12 +108,8 @@ let
 
       # FIXME: udev/udevRules module.
       { object = udevRules; symlink = "/etc/udev/rules.d"; }
-
-      # Init components
-      { object = "${extraUtils}/bin/loader"; symlink = "/loader"; }
-      { object = initWrapper; symlink = "/init"; }
-      { object = "${mobile-nixos-init}/libexec/init.mrb"; symlink = "/init.mrb"; }
     ]
+    ++ initContents
   ;
 
   # The initrd only has to mount `/` or any FS marked as necessary for
@@ -288,6 +303,20 @@ in
           Additional udev rules for stage-1.
         '';
         internal = true;
+      };
+
+      mobile.boot.stage-1.customInit = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = ''
+          Path to a custom init script to use instead of the default Ruby init.mrb.
+          
+          When set, this completely replaces the standard Mobile NixOS init system
+          with a custom script. The script will be placed as /init in the initrd
+          and executed directly by the bootloader.
+          
+          This is useful for size optimization or special boot scenarios.
+        '';
       };
 
       mobile.outputs = {
