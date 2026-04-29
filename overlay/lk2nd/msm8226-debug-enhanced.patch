@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..59da3de 100644
+index a451443..fe14787 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,7 @@
@@ -16,7 +16,7 @@ index a451443..59da3de 100644
  
 +	/* DEBUG: CP0 - Right after wdog init, before any memory setup */
 +	vib_timed_turn_on(150);
-+	mdelay(500);  /* Long pause to distinguish from CP1 */
++	mdelay(2000);  /* Long pause to distinguish from CP1 */
 +	dprintf(INFO, "lk2nd: CP0 - After wdog init\n");
 +
 +	/* Debug vibrations - 7 checkpoints with proper vibrator API */
@@ -24,12 +24,12 @@ index a451443..59da3de 100644
 +	vib_timed_turn_on(50);
 +	mdelay(100);
 +	vib_timed_turn_on(50);
-+	mdelay(500);  /* Long pause after CP1 */
++	mdelay(2000);  /* Long pause after CP1 */
 +	dprintf(INFO, "lk2nd: CP1 - Startup\n");
 +
 +	/* CP1.5 - About to setup page size */
 +	vib_timed_turn_on(75);
-+	mdelay(500);  /* Long pause after CP1.5 */
++	mdelay(2000);  /* Long pause after CP1.5 */
 +	dprintf(INFO, "lk2nd: CP1.5 - About to setup page size\n");
 +
  	/* Setup page size information for nv storage */
@@ -42,7 +42,7 @@ index a451443..59da3de 100644
 +	/* CP2: Page size setup done */
 +	vib_timed_turn_on(100);
 +	mdelay(100);
-+	mdelay(500);  /* Long pause */
++	mdelay(2000);  /* Long pause */
 +	dprintf(INFO, "lk2nd: CP2 - Page size setup\n");
 +
  #if !ABOOT_STANDALONE
@@ -57,7 +57,7 @@ index a451443..59da3de 100644
 +	mdelay(100);
 +	vib_timed_turn_on(100);
 +	mdelay(100);
-+	mdelay(500);  /* Long pause */
++	mdelay(2000);  /* Long pause */
 +	dprintf(INFO, "lk2nd: CP3 - Device info read\n");
 +
  	/* Detect multi-slot support */
@@ -75,7 +75,7 @@ index a451443..59da3de 100644
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
-@@ -5653,6 +5691,12 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5653,6 +5691,13 @@ void aboot_init(const struct app_descriptor *app)
  normal_boot:
  	if (!boot_into_fastboot)
  	{
@@ -83,12 +83,13 @@ index a451443..59da3de 100644
 +		vib_timed_turn_on(100);
 +		mdelay(50);
 +		vib_timed_turn_on(100);
++		mdelay(2000);
 +		dprintf(INFO, "lk2nd: CP5 - About to call lk2nd_boot\n");
 +
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5720,30 @@ normal_boot:
+@@ -5676,16 +5721,30 @@ normal_boot:
  			}
  
  retry_boot:
@@ -111,7 +112,7 @@ index a451443..59da3de 100644
 +
 +		/* CP6: Boot partition selected */
 +		vib_timed_turn_on(150);
-+		mdelay(100);
++		mdelay(2000);
 +		dprintf(INFO, "lk2nd: CP6 - Boot partition selected\n");
 +
 +		/* CP7: About to call boot_linux_from_mmc - CRITICAL CHECKPOINT */
@@ -120,7 +121,7 @@ index a451443..59da3de 100644
 +		vib_timed_turn_on(50);
 +		mdelay(50);
 +		vib_timed_turn_on(50);
-+		mdelay(50);
++		mdelay(2000);
 +		dprintf(INFO, "lk2nd: CP7 - About to call boot_linux_from_mmc\n");
  
 -			boot_err_type = boot_linux_from_mmc();
