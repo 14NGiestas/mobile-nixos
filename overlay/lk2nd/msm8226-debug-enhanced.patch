@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..cadc022 100644
+index a451443..cf0b860 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,94 @@
@@ -149,7 +149,7 @@ index a451443..cadc022 100644
  #if USE_PON_REBOOT_REG
  	reboot_mode = check_hard_reboot_mode();
  #else
-@@ -5650,9 +5753,15 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5650,14 +5753,38 @@ void aboot_init(const struct app_descriptor *app)
  	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
  #endif
  
@@ -162,12 +162,45 @@ index a451443..cadc022 100644
 +		/* CP6: 7 pulses */
 +		DEBUG_CHECKPOINT_6();
 +
++		/* CP6.1: After CP6, before lk2nd_boot */
++		for (int i = 0; i < 7; i++) {
++			vib_timed_turn_on(50);
++			mdelay(100);
++		}
++		vib_timed_turn_on(75);
++		mdelay(2000);
++		dprintf(INFO, "lk2nd: CP6.1\n");
++
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5785,19 @@ normal_boot:
+ #endif
+ 
++		/* CP6.2: After lk2nd_boot call */
++		for (int i = 0; i < 7; i++) {
++			vib_timed_turn_on(50);
++			mdelay(100);
++		}
++		vib_timed_turn_on(100);
++		mdelay(2000);
++		dprintf(INFO, "lk2nd: CP6.2\n");
++
+ 		if (target_is_emmc_boot())
+ 		{
+ 			if(!IS_ENABLED(ABOOT_STANDALONE) && emmc_recovery_init())
+@@ -5675,17 +5802,29 @@ normal_boot:
+ 				}
  			}
  
++		/* CP6.3: After target_is_emmc_boot checks, before retry_boot */
++		for (int i = 0; i < 7; i++) {
++			vib_timed_turn_on(50);
++			mdelay(100);
++		}
++		vib_timed_turn_on(125);
++		mdelay(2000);
++		dprintf(INFO, "lk2nd: CP6.3\n");
++
  retry_boot:
 -			/* Trying to boot active partition */
 -			if (partition_multislot_is_supported())
