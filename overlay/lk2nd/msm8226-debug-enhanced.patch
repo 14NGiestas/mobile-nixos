@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..0f38f99 100644
+index a451443..e0bd643 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -95,6 +95,7 @@
@@ -10,10 +10,14 @@ index a451443..0f38f99 100644
  
  #if WITH_LK2ND
  #include <lk2nd/init.h>
-@@ -5498,6 +5499,13 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5498,6 +5499,21 @@ void aboot_init(const struct app_descriptor *app)
  	msm_wdog_init();
  #endif
  
++	/* DEBUG: CP0 - Right after wdog init, before any memory setup */
++	vib_timed_turn_on(150);
++	dprintf(INFO, "lk2nd: CP0 - After wdog init\n");
++
 +	/* Debug vibrations - 7 checkpoints with proper vibrator API */
 +	/* CP1: Startup reached */
 +	vib_timed_turn_on(50);
@@ -21,10 +25,14 @@ index a451443..0f38f99 100644
 +	vib_timed_turn_on(50);
 +	dprintf(INFO, "lk2nd: CP1 - Startup\n");
 +
++	/* CP1.5 - About to setup page size */
++	vib_timed_turn_on(75);
++	dprintf(INFO, "lk2nd: CP1.5 - About to setup page size\n");
++
  	/* Setup page size information for nv storage */
  	if (target_is_emmc_boot())
  	{
-@@ -5513,6 +5521,11 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5513,6 +5529,11 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	ASSERT((MEMBASE + MEMSIZE) > MEMBASE);
  
@@ -36,7 +44,7 @@ index a451443..0f38f99 100644
  #if !ABOOT_STANDALONE
  	read_device_info(&device);
  	read_allow_oem_unlock(&device);
-@@ -5520,6 +5533,13 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5520,6 +5541,13 @@ void aboot_init(const struct app_descriptor *app)
  	device.is_unlocked = true;
  #endif
  
@@ -50,7 +58,7 @@ index a451443..0f38f99 100644
  	/* Detect multi-slot support */
  	if (partition_multislot_is_supported())
  	{
-@@ -5592,6 +5612,11 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5592,6 +5620,11 @@ void aboot_init(const struct app_descriptor *app)
  	}
  	if (!boot_into_fastboot)
  	{
@@ -62,7 +70,7 @@ index a451443..0f38f99 100644
  		if (keys_get_state(KEY_VOLUMEUP))
  			boot_into_recovery = 1;
  		if (!boot_into_recovery &&
-@@ -5653,6 +5678,12 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5653,6 +5686,12 @@ void aboot_init(const struct app_descriptor *app)
  normal_boot:
  	if (!boot_into_fastboot)
  	{
@@ -75,7 +83,7 @@ index a451443..0f38f99 100644
  #if WITH_LK2ND_BOOT
  		if (!boot_into_recovery)
  			lk2nd_boot();
-@@ -5676,16 +5707,30 @@ normal_boot:
+@@ -5676,16 +5715,30 @@ normal_boot:
  			}
  
  retry_boot:
