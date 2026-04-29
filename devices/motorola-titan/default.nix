@@ -87,7 +87,12 @@ in
       offset_tags = "00000100";
       pagesize = "2048";
     };
-    system.android.bootimg.dt = lib.mkForce null;
+    system.android.bootimg.dt = lib.mkForce null;  # lk2nd provides DTB from bootloader
+    
+    # Use Titan DTB from lk2nd build (required for lk2nd to accept kernel)
+    system.android.appendDTB = lib.mkDefault [
+      "${pkgs.lk2ndMsm8226}/dtb/msm8226-motorola-titan.dtb"
+    ];
 
     usb = {
       mode = "android_usb";  # g_android (downstream)
