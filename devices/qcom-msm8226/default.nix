@@ -25,9 +25,7 @@
     compressor = "gzip";
     
     postDeviceCommands = ''
-      echo "=== Kernel and initrd loaded ===" > /dev/kmsg
-      # Musical vibration pattern: Morse code SOS (... --- ...)
-      # Short-short-short / Long-long-long / Short-short-short
+      # Quick vibration pattern to confirm boot
       vib_path=""
       if [ -e /sys/class/timed_output/vibrator/enable ]; then
         vib_path="/sys/class/timed_output/vibrator/enable"
@@ -36,13 +34,10 @@
       fi
       
       if [ -n "$vib_path" ] && [ -e "$vib_path" ]; then
-        # SOS pattern: . . . - - - . . .
-        # Short (100ms) / Long (300ms)
-        for i in 1 2 3; do echo 100 > "$vib_path"; sleep 0.15; done  # S: ...
-        sleep 0.2
-        for i in 1 2 3; do echo 300 > "$vib_path"; sleep 0.4; done   # O: ---
-        sleep 0.2
-        for i in 1 2 3; do echo 100 > "$vib_path"; sleep 0.15; done  # S: ...
+        # Quick double-tap: 50ms on, 50ms off, 50ms on
+        echo 50 > "$vib_path"
+        sleep 0.1
+        echo 50 > "$vib_path"
       fi
     '';
   };

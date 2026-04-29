@@ -17,7 +17,6 @@ pkgs.mkShell {
     # Third party tools
     android-tools             # For flashing android devices with fastboot
     dtc                       # For playing around with device tree files
-    dtbTool                   # Combines multiple device tree blobs into one image
     file                      # Shows the type of files
     lz4                       # Decompress image files
     mkbootimg                 # Pack and unpack boot images
