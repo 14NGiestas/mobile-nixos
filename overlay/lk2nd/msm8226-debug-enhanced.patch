@@ -1,236 +1,283 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..4947e6f 100644
+index a451443..5033f83 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
-@@ -95,6 +95,94 @@
- #include <menu_keys_detect.h>
- #include <display_menu.h>
- #include "fastboot_test.h"
+@@ -38,6 +38,7 @@
+ #include <limits.h>
+ #include <kernel/thread.h>
+ #include <arch/ops.h>
 +#include <vibrator.h>
-+
-+/* Debug checkpoint macros - simple vibration streams with 2 second pauses between */
-+#define DEBUG_CHECKPOINT_0() \
-+	do { \
-+		vib_timed_turn_on(2000); \
-+		mdelay(2000); \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP0\n"); \
-+	} while(0)
-+
-+/* Rapid pulse stream - rapid short timed vibrations for N pulses */
-+#define DEBUG_CHECKPOINT_1() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 2; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP1\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_2() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 3; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP2\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_3() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 4; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP3\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_4() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 5; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP4\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_5() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 6; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP5\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_6() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 7; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP6\n"); \
-+	} while(0)
-+
-+#define DEBUG_CHECKPOINT_7() \
-+	do { \
-+		int i; \
-+		for (i = 0; i < 8; i++) { \
-+			vib_timed_turn_on(50); \
-+			mdelay(100); \
-+		} \
-+		mdelay(2000); \
-+		dprintf(INFO, "lk2nd: CP7\n"); \
-+	} while(0)
  
- #if WITH_LK2ND
- #include <lk2nd/init.h>
-@@ -5496,7 +5584,10 @@ void aboot_init(const struct app_descriptor *app)
+ #include <dev/flash.h>
+ #include <dev/flash-ubi.h>
+@@ -168,6 +169,14 @@ struct fastboot_cmd_desc {
+ //a uncompressed kernel + appended dtb
+ #define PATCHED_KERNEL_MAGIC "UNCOMPRESSED_IMG"
+ 
++/* Vibration checkpoint macros for debugging boot flow */
++#define VIB_CHECKPOINT_1() do { vib_timed_turn_on(100); mdelay(1200); } while(0)  /* Single short pulse + 1.2s gap */
++#define VIB_CHECKPOINT_2() do { vib_timed_turn_on(100); mdelay(150); vib_timed_turn_on(100); mdelay(1200); } while(0)  /* Double pulse + 1.2s gap */
++#define VIB_CHECKPOINT_3() do { for(int i=0;i<3;i++) { vib_timed_turn_on(80); mdelay(100); } mdelay(1200); } while(0)  /* Triple pulse + 1.2s gap */
++#define VIB_CHECKPOINT_4() do { for(int i=0;i<4;i++) { vib_timed_turn_on(75); mdelay(100); } mdelay(1200); } while(0)  /* Quad pulse + 1.2s gap */
++#define VIB_CHECKPOINT_5() do { for(int i=0;i<5;i++) { vib_timed_turn_on(70); mdelay(100); } mdelay(1200); } while(0)  /* 5-pulse + 1.2s gap */
++#define VIB_CHECKPOINT_LONG() do { vib_timed_turn_on(500); mdelay(1200); } while(0)  /* Long 500ms pulse + 1.2s gap */
++
+ #if USE_BOOTDEV_CMDLINE
+ static const char *emmc_cmdline = " androidboot.bootdevice=";
+ #else
+@@ -1594,6 +1603,9 @@ int boot_linux_from_mmc(void)
+ 	unsigned second_actual = 0;
+ 	enum boot_type boot_type = 0;
+ 
++	dprintf(INFO, "lk2nd: boot_linux_from_mmc() ENTRY\n");
++	VIB_CHECKPOINT_4();  // Quad pulse = boot_linux_from_mmc() entry
++	
+ #ifdef OSVERSION_IN_BOOTIMAGE
+ 	uint32_t dtb_image_offset = 0;
+ #endif
+@@ -1613,7 +1625,7 @@ int boot_linux_from_mmc(void)
+ 	void *vbmeta_image_buf = NULL;
+ 	uint32_t vbmeta_image_sz = 0;
+ #endif
+-	char *ptn_name = "boot";
++	char *ptn_name = "recovery";  // lk2nd primary boot: read kernel from recovery partition
+ #if DEVICE_TREE
+ 	void * image_buf = NULL;
+ 	unsigned int dtb_size = 0;
+@@ -2116,64 +2128,64 @@ int boot_linux_from_mmc(void)
+ 
+ 		if (dev_tree_validate(table, hdr->page_size, &dt_hdr_size) != 0) {
+ 			dprintf(CRITICAL, "ERROR: Cannot validate Device Tree Table \n");
+-			return -1;
++			dprintf(INFO, "lk2nd: Skipping DTB from boot image, kernel will use its own\n");
++			/* Don't load DTB - let kernel use its bundled DTB */
++			dt_size = 0;
+ 		}
+-
+-		/* Its Error if, dt_hdr_size (table->num_entries * dt_entry size + Dev_Tree Header)
+-		goes beyound hdr->dt_size*/
+-		if (dt_hdr_size > ROUND_TO_PAGE(dt_size,hdr->page_size)) {
++		else if (dt_hdr_size > ROUND_TO_PAGE(dt_size,hdr->page_size)) {
+ 			dprintf(CRITICAL, "ERROR: Invalid Device Tree size \n");
+ 			return -1;
+ 		}
++		else {
++			/* Find index of device tree within device tree table */
++			if(dev_tree_get_entry_info(table, &dt_entry) != 0){
++				dprintf(CRITICAL, "ERROR: Getting device tree address failed\n");
++				dprintf(INFO, "lk2nd: Skipping DTB from boot image, kernel will use its own\n");
++				/* Don't load DTB - let kernel use its bundled DTB */
++				dt_size = 0;
++			}
++			else if(dt_entry.offset > (UINT_MAX - dt_entry.size)) {
++				dprintf(CRITICAL, "ERROR: Device tree contents are Invalid\n");
++				return -1;
++			}
++			else if ((dt_entry.offset + dt_entry.size) > dt_size) {
++				dprintf(CRITICAL, "ERROR: Device tree contents are Invalid\n");
++				return -1;
++			}
++			else {
++				if (is_gzip_package((unsigned char *)dt_table_offset + dt_entry.offset, dt_entry.size))
++				{
++					unsigned int compressed_size = 0;
++					out_addr += out_len;
++					out_avai_len -= out_len;
++					dprintf(INFO, "decompressing dtb: start\n");
++					rc = decompress((unsigned char *)dt_table_offset + dt_entry.offset,
++							dt_entry.size, out_addr, out_avai_len,
++							&compressed_size, &dtb_size);
++					if (rc)
++					{
++						dprintf(CRITICAL, "decompressing dtb failed!!!\n");
++						ASSERT(0);
++					}
+ 
+-		/* Find index of device tree within device tree table */
+-		if(dev_tree_get_entry_info(table, &dt_entry) != 0){
+-			dprintf(CRITICAL, "ERROR: Getting device tree address failed\n");
+-			return -1;
+-		}
+-
+-		if(dt_entry.offset > (UINT_MAX - dt_entry.size)) {
+-			dprintf(CRITICAL, "ERROR: Device tree contents are Invalid\n");
+-			return -1;
+-		}
++					dprintf(INFO, "decompressing dtb: done\n");
++					best_match_dt_addr = out_addr;
++				} else {
++					best_match_dt_addr = (unsigned char *)dt_table_offset + dt_entry.offset;
++					dtb_size = dt_entry.size;
++				}
+ 
+-		/* Ensure we are not overshooting dt_size with the dt_entry selected */
+-		if ((dt_entry.offset + dt_entry.size) > dt_size) {
+-			dprintf(CRITICAL, "ERROR: Device tree contents are Invalid\n");
+-			return -1;
+-		}
++				/* Validate and Read device device tree in the tags_addr */
++				if (check_aboot_addr_range_overlap(hdr->tags_addr, dtb_size) ||
++					check_ddr_addr_range_bound(hdr->tags_addr, dtb_size))
++				{
++					dprintf(CRITICAL, "Device tree addresses are not valid\n");
++					return -1;
++				}
+ 
+-		if (is_gzip_package((unsigned char *)dt_table_offset + dt_entry.offset, dt_entry.size))
+-		{
+-			unsigned int compressed_size = 0;
+-			out_addr += out_len;
+-			out_avai_len -= out_len;
+-			dprintf(INFO, "decompressing dtb: start\n");
+-			rc = decompress((unsigned char *)dt_table_offset + dt_entry.offset,
+-					dt_entry.size, out_addr, out_avai_len,
+-					&compressed_size, &dtb_size);
+-			if (rc)
+-			{
+-				dprintf(CRITICAL, "decompressing dtb failed!!!\n");
+-				ASSERT(0);
++				memmove((void *)hdr->tags_addr, (char *)best_match_dt_addr, dtb_size);
+ 			}
+-
+-			dprintf(INFO, "decompressing dtb: done\n");
+-			best_match_dt_addr = out_addr;
+-		} else {
+-			best_match_dt_addr = (unsigned char *)dt_table_offset + dt_entry.offset;
+-			dtb_size = dt_entry.size;
+-		}
+-
+-		/* Validate and Read device device tree in the tags_addr */
+-		if (check_aboot_addr_range_overlap(hdr->tags_addr, dtb_size) ||
+-			check_ddr_addr_range_bound(hdr->tags_addr, dtb_size))
+-		{
+-			dprintf(CRITICAL, "Device tree addresses are not valid\n");
+-			return -1;
+ 		}
+-
+-		memmove((void *)hdr->tags_addr, (char *)best_match_dt_addr, dtb_size);
+ 	} else {
+ 		/* Validate the tags_addr */
+ 		if (check_aboot_addr_range_overlap(hdr->tags_addr, kernel_actual) ||
+@@ -4672,9 +4684,13 @@ void cmd_continue(const char *arg, void *data, unsigned sz)
+ 		exit_menu_keys_detection();
+ #endif
+ #if WITH_LK2ND_BOOT
+-		lk2nd_boot();
++		dprintf(INFO, "lk2nd: SKIPPING lk2nd_boot()\n");
++		/* lk2nd_boot(); */
+ #endif
++		dprintf(INFO, "lk2nd: About to call boot_linux_from_mmc() - 5-PULSE CHECKPOINT\n");
++		VIB_CHECKPOINT_5();  // 5-pulse sequence = about to call boot_linux_from_mmc
+ 		boot_linux_from_mmc();
++		dprintf(INFO, "lk2nd: boot_linux_from_mmc() returned - should not reach here\n");
+ 	}
+ 	else
+ 	{
+@@ -5493,6 +5509,9 @@ void aboot_init(const struct app_descriptor *app)
+ 	int boot_err_type = 0;
+ 	int boot_slot = INVALID;
+ 
++	dprintf(INFO, "lk2nd: aboot_init() START\n");
++	VIB_CHECKPOINT_1();  // Single pulse = aboot_init start
++
  	/* Initialise wdog to catch early lk crashes */
  #if WDOG_SUPPORT
  	msm_wdog_init();
--#endif
-+	#endif
-+
-+	/* CP0: 2 second long vibration to mark start */
-+	DEBUG_CHECKPOINT_0();
+@@ -5539,6 +5558,8 @@ void aboot_init(const struct app_descriptor *app)
  
- 	/* Setup page size information for nv storage */
- 	if (target_is_emmc_boot())
-@@ -5513,6 +5604,9 @@ void aboot_init(const struct app_descriptor *app)
- 	}
- 	ASSERT((MEMBASE + MEMSIZE) > MEMBASE);
- 
-+	/* CP1: 2 pulses */
-+	DEBUG_CHECKPOINT_1();
-+
- #if !ABOOT_STANDALONE
- 	read_device_info(&device);
- 	read_allow_oem_unlock(&device);
-@@ -5520,6 +5614,9 @@ void aboot_init(const struct app_descriptor *app)
- 	device.is_unlocked = true;
+ #if WITH_LK2ND
+ 	lk2nd_init();
++	dprintf(INFO, "lk2nd: lk2nd_init() completed\n");
++	VIB_CHECKPOINT_2();  // Double pulse = lk2nd_init done
  #endif
  
-+	/* CP2: 3 pulses */
-+	DEBUG_CHECKPOINT_2();
-+
- 	/* Detect multi-slot support */
- 	if (partition_multislot_is_supported())
- 	{
-@@ -5592,6 +5689,9 @@ void aboot_init(const struct app_descriptor *app)
- 	}
- 	if (!boot_into_fastboot)
- 	{
-+		/* CP3: 4 pulses */
-+		DEBUG_CHECKPOINT_3();
-+
- 		if (keys_get_state(KEY_VOLUMEUP))
- 			boot_into_recovery = 1;
- 		if (!boot_into_recovery &&
-@@ -5603,6 +5703,9 @@ void aboot_init(const struct app_descriptor *app)
- 		boot_into_fastboot = true;
- 	#endif
- 
-+	/* CP4: 5 pulses */
-+	DEBUG_CHECKPOINT_4();
-+
- #if USE_PON_REBOOT_REG
- 	reboot_mode = check_hard_reboot_mode();
- #else
-@@ -5650,14 +5753,45 @@ void aboot_init(const struct app_descriptor *app)
- 	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
+ 	/* Display splash screen if enabled */
+@@ -5651,17 +5672,31 @@ void aboot_init(const struct app_descriptor *app)
  #endif
  
-+	/* CP5: 6 pulses */
-+	DEBUG_CHECKPOINT_5();
-+
  normal_boot:
++	dprintf(INFO, "lk2nd: normal_boot label reached\n");
++	VIB_CHECKPOINT_3();  // Triple pulse = normal_boot reached
++	dprintf(INFO, "lk2nd: About to check boot_into_fastboot variable\n");
++	mdelay(500);  // Give time for checkpoint 3 to complete
  	if (!boot_into_fastboot)
  	{
-+		/* CP6: 7 pulses */
-+		DEBUG_CHECKPOINT_6();
-+
-+		/* MARKER: Two long buzzes to confirm CP6 reached */
-+		vib_timed_turn_on(500);
-+		mdelay(500);
-+		vib_timed_turn_on(500);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP6 CONFIRMED - Two long buzzes\n");
-+
-+		/* CP6.1: After CP6, before lk2nd_boot */
-+		for (int i = 0; i < 7; i++) {
-+			vib_timed_turn_on(50);
-+			mdelay(100);
-+		}
-+		vib_timed_turn_on(75);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP6.1\n");
-+
++		dprintf(INFO, "lk2nd: Entered normal boot path (!boot_into_fastboot)\n");
++		VIB_CHECKPOINT_LONG();  // Long pulse = entered normal boot
  #if WITH_LK2ND_BOOT
- 		if (!boot_into_recovery)
- 			lk2nd_boot();
+-		if (!boot_into_recovery)
+-			lk2nd_boot();
++		dprintf(INFO, "lk2nd: About to call lk2nd_boot()\n");
++		VIB_CHECKPOINT_5();  // 5-pulse = about to call lk2nd_boot()
++		dprintf(INFO, "lk2nd: SKIPPING lk2nd_boot() - was causing hang\n");
++		/* lk2nd_boot(); */  // SKIP: causes hang/infinite loop
++		dprintf(INFO, "lk2nd: lk2nd_boot() skipped\n");
  #endif
++		dprintf(INFO, "lk2nd: After lk2nd_boot section\n");
++		VIB_CHECKPOINT_4();  // Quad pulse = after lk2nd_boot, about to check target_is_emmc_boot()
  
-+		/* CP6.2: After lk2nd_boot call */
-+		for (int i = 0; i < 7; i++) {
-+			vib_timed_turn_on(50);
-+			mdelay(100);
-+		}
-+		vib_timed_turn_on(100);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP6.2\n");
-+
  		if (target_is_emmc_boot())
  		{
++			dprintf(INFO, "lk2nd: emmc_boot confirmed, about to call emmc_recovery_init()\n");
++			VIB_CHECKPOINT_2();  // Double pulse = about to call emmc_recovery_init()
  			if(!IS_ENABLED(ABOOT_STANDALONE) && emmc_recovery_init())
-@@ -5675,17 +5809,29 @@ normal_boot:
- 				}
+ 				dprintf(ALWAYS,"error in emmc_recovery_init\n");
++			dprintf(INFO, "lk2nd: emmc_recovery_init() returned\n");
+ 			if(target_use_signed_kernel())
+ 			{
+ 				if((device.is_unlocked) || (device.is_tampered))
+@@ -5685,6 +5720,8 @@ retry_boot:
+ 					goto fastboot;
  			}
  
-+		/* CP6.3: After target_is_emmc_boot checks, before retry_boot */
-+		for (int i = 0; i < 7; i++) {
-+			vib_timed_turn_on(50);
-+			mdelay(100);
-+		}
-+		vib_timed_turn_on(125);
-+		mdelay(2000);
-+		dprintf(INFO, "lk2nd: CP6.3\n");
-+
- retry_boot:
--			/* Trying to boot active partition */
--			if (partition_multislot_is_supported())
--			{
--				boot_slot = partition_find_boot_slot();
--				partition_mark_active_slot(boot_slot);
--				if (boot_slot == INVALID)
--					goto fastboot;
--			}
-+		/* Trying to boot active partition */
-+		if (partition_multislot_is_supported())
-+		{
-+			boot_slot = partition_find_boot_slot();
-+			partition_mark_active_slot(boot_slot);
-+			if (boot_slot == INVALID)
-+				goto fastboot;
-+		}
-+
-+		/* CP7: 8 pulses */
-+		DEBUG_CHECKPOINT_7();
- 
--			boot_err_type = boot_linux_from_mmc();
-+		boot_err_type = boot_linux_from_mmc();
++			dprintf(INFO, "lk2nd: About to call boot_linux_from_mmc() from retry_boot\n");
++			VIB_CHECKPOINT_LONG();  // Long pulse = about to call boot_linux_from_mmc()
+ 			boot_err_type = boot_linux_from_mmc();
  			switch (boot_err_type)
  			{
- 				case ERR_INVALID_PAGE_SIZE:
+@@ -5723,6 +5760,8 @@ retry_boot:
+ 	}
+ 
+ fastboot:
++	dprintf(INFO, "lk2nd: Reached fastboot label - boot_into_fastboot must be true!\n");
++	VIB_CHECKPOINT_1();  // Single pulse = we're in fastboot mode
+ 	/* We are here means regular boot did not happen. Start fastboot. */
+ 
+ 	/* register aboot specific fastboot commands */
+diff --git a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
+index 2d5a68b..bd5c717 100644
+--- a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
++++ b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
+@@ -32,7 +32,8 @@
+ 		      <QCOM_ID_MSM8626 0x4e 0x8500>,
+ 		      <QCOM_ID_MSM8626 0x4f 0x8100>, <QCOM_ID_MSM8626 0x4f 0x8200>,
+ 		      <QCOM_ID_MSM8626 0x4f 0x8300>, <QCOM_ID_MSM8626 0x4f 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4f 0x8500>;
++		      <QCOM_ID_MSM8626 0x4f 0x8500>,
++		      <QCOM_ID_MSM8226 0x00 0x00020000>;  /* Moto G 2014 Titan actual hardware ID */
+ };
+ 
+ &lk2nd {
+diff --git a/platform/msm_shared/dev_tree.c b/platform/msm_shared/dev_tree.c
+index 86757c0..628673c 100644
+--- a/platform/msm_shared/dev_tree.c
++++ b/platform/msm_shared/dev_tree.c
+@@ -1987,6 +1987,7 @@ int dev_tree_get_entry_info(struct dt_table *table, struct dt_entry *dt_entry_in
+ 	dprintf(CRITICAL, "ERROR: Unable to find suitable device tree for device (%u/0x%08x/0x%08x/%u)\n",
+ 			board_platform_id(), board_soc_version(),
+ 			board_target_id(), board_hardware_subtype());
++	dprintf(INFO, "INFO: Using kernel's own DTB as fallback\n");
+ 
+ 	list_for_every_entry(&dt_entry_queue->node, dt_node_tmp1, dt_node, node) {
+ 		/* free node memory */
+@@ -1995,7 +1996,9 @@ int dev_tree_get_entry_info(struct dt_table *table, struct dt_entry *dt_entry_in
+ 		dt_node_tmp1 = dt_node_tmp2;
+ 	}
+ 	free(dt_entry_queue);
+-	return -1;
++	/* Fallback: return 0 (success) with zero/empty entry to allow kernel to use its own DTB */
++	memset(dt_entry_info, 0, sizeof(*dt_entry_info));
++	return 0;
+ }
+ 
+ /* Function to add the first RAM partition info to the device tree.

@@ -4,7 +4,7 @@
 
 Port Mobile NixOS to Motorola Moto G 2014 (Titan, SoC MSM8226) with USB Gadget Serial console support (ttyGS0 @ 115200 baud) and mainline kernel (v6.16.12).
 
-**Current Status**: Kernel builds with USB Gadget Serial enabled; testing serial console functionality.
+**Current Status**: Mainline kernel v6.16.12 builds with USB Gadget Serial; lk2nd v16 with partition fix embedded; testing on physical device.
 
 ## Build Command
 
@@ -30,6 +30,34 @@ This builds for the active device config at `devices/qcom-msm8226/default.nix`.
 - **`default.nix`** - Entry point; reads `--argstr device` and optional `local.nix`
 
 ## Key Configuration Details
+
+### ⚠️ CRITICAL: lk2nd Integration in Device Config
+
+The `devices/qcom-msm8226/default.nix` **must include** lk2nd second-stage bootloader in bootimg:
+
+```nix
+mobile.system.android.bootimg = {
+  second = lib.mkDefault "${pkgs.lk2ndMsm8226}/lk2nd.img";
+  flash = { ... };
+  dt = lib.mkForce null;  # Use bootloader DTB, not kernel-generated
+};
+```
+
+**Why**: Without `bootimg.second`, lk2nd is not embedded in boot image. Device will not have a working bootloader.
+
+**Pattern**: Use `pkgs.lk2ndMsm8226` from the overlay (defined in `overlay/overlay.nix`). Do NOT manually callPackage the nix file.
+
+### lk2nd Partition Fix (v16)
+
+**Problem v15 and earlier**: lk2nd hardcoded `ptn_name = "boot"` in aboot.c:1628, but kernel is flashed to RECOVERY partition.
+- Symptom: "Full party" vibrations (CP1→CP2→CP3→CP4→CP5 sequence repeating every 30s)
+- Root cause: `[13400] ERROR: Invalid boot image header` - lk2nd reading wrong partition
+- Device reboots every 30 seconds in infinite loop
+
+**Solution v16**: Changed partition to `ptn_name = "recovery"` in `overlay/lk2nd/msm8226-debug-enhanced.patch`
+- **Patch file**: `overlay/lk2nd/msm8226-debug-enhanced.patch` line 1628
+- **Version bump**: Must increment version in `overlay/lk2nd/msm8226.nix` to bust Nix cache (currently v16)
+- **Flash target**: Use `fastboot flash recovery mainline-boot-v16.img` (not BOOT partition)
 
 ### USB Gadget Serial (Console)
 
@@ -60,34 +88,143 @@ mobile.system.android.bootimg.flash = {
 - **`mobile.system.android.bootimg.dt = lib.mkForce null`** - Use bootloader DTB, not kernel-generated
 - Kernel-generated DTB was causing crashes; bootloader DTB (Motorola) works correctly
 
-## Automation Scripts
 
-### `monitor-and-flash.sh` (Main Automation)
+## Automation and Testing
 
-Fully automated, no interaction needed:
-1. Waits for kernel build to complete
-2. Verifies boot image (checks `console=ttyGS0`)
-3. Flashes via fastboot (requires device in Fastboot mode)
-4. Reboots device
-5. Waits for USB serial device (`/dev/ttyACM0` or similar)
-6. Captures 10 seconds of boot output
-7. Analyzes for kernel boot, USB Gadget Serial, user space, errors
-8. Saves results to log
+### Long-Running Builds with tmux
 
-**Run**: `./monitor-and-flash.sh` (in background, ~40 minute total runtime)
+For builds that take 30-60 minutes (kernel cross-compile), always use tmux:
 
-**PID tracking**: `build-mainline-usb.pid` and `monitor-and-flash.pid`
-
-**Status check**: `tail -f monitor-and-flash.log`
-
-### `rebuild-mainline-usb.sh`
-
-Builds kernel in background (spawns as subprocess):
 ```bash
-./rebuild-mainline-usb.sh
-# Runs: nix-build ... -o mainline-boot.img
-# Log: build-mainline-usb.log
+# Create named session
+tmux new-session -d -s mobile-nixos-titan-build-v16-bootimg 'cd /home/pauli/documents/code/titan/mobile-nixos && nix-build --argstr device qcom-msm8226 -A outputs.android-bootimg --max-jobs 4 -o mainline-boot-v16.img'
+
+# Monitor live (non-blocking, read-only)
+watch -n 2 'tmux capture-pane -t mobile-nixos-titan-build-v16-bootimg:0 -p | tail -50'
+
+# Or check once
+tmux capture-pane -t mobile-nixos-titan-build-v16-bootimg:0 -p | tail -50
+
+# Clean up when done
+tmux kill-session -t mobile-nixos-titan-build-v16-bootimg
 ```
+
+**Key**: Use long descriptive session names so future agents know what's running. Always prefer `tmux capture-pane` over attaching - it's read-only and won't interfere.
+
+### General tmux Background Tasks
+
+Use tmux to run long-lived background commands as background "tasks" like vite dev servers, commands with watch mode.  
+Each task should be a tmux **session** that the agent can start, inspect, and stop via CLI.
+
+ALWAYS give long and descriptive names for the sessions, so other agents know what they are for.
+
+Run a background task (e.g. Vite dev server) without blocking:
+
+```bash
+tmux new-session -d -s project-name-vite-dev-port-8034 'cd /path/to/project && npm run dev --port 8034'
+```
+
+Every time you are about to start a new session, first check if there is one already.
+
+List all background tasks (sessions):
+
+```bash
+tmux ls
+```
+
+You can assume sessions that do not have names were not started by you or agents so you can ignore them
+
+Kill a background task:
+
+```bash
+tmux kill-session -t vite-dev
+```
+
+Never attach to a session. You are inside a non TTY terminal, meaning you instead will have to read the latest n logs instead.
+
+
+Fetch the last N log lines for a task without attaching (returns immediately):
+
+```bash
+tmux capture-pane -t vite-dev:0 -S -100 -p
+```
+
+Example pattern for a coding agent:
+
+1. Start a task:
+
+   ```bash
+   tmux new-session -d -s build 'cd /repo && npm run build'
+   ```
+
+2. Poll logs:
+
+   ```bash
+   tmux capture-pane -t build:0 -S -80 -p
+   ```
+
+3. List all running tasks:
+
+   ```bash
+   tmux ls
+   ```
+
+4. Stop a task when done:
+
+   ```bash
+   tmux kill-session -t build
+   ```
+
+Every time you are about to start a new session, first check if there is one already.
+
+List all background tasks (sessions):
+
+```bash
+tmux ls
+```
+
+You can assume sessions that do not have names were not started by you or agents so you can ignore them
+
+Kill a background task:
+
+```bash
+tmux kill-session -t vite-dev
+```
+
+Never attach to a session. You are inside a non TTY terminal, meaning you instead will have to read the latest n logs instead.
+
+
+Fetch the last N log lines for a task without attaching (returns immediately):
+
+```bash
+tmux capture-pane -t vite-dev:0 -S -100 -p
+```
+
+Example pattern for a coding agent:
+
+1. Start a task:
+
+   ```bash
+   tmux new-session -d -s build 'cd /repo && npm run build'
+   ```
+
+2. Poll logs:
+
+   ```bash
+   tmux capture-pane -t build:0 -S -80 -p
+   ```
+
+3. List all running tasks:
+
+   ```bash
+   tmux ls
+   ```
+
+4. Stop a task when done:
+
+   ```bash
+   tmux kill-session -t build
+   ```
 
 ## Testing & Flashing
 
@@ -98,6 +235,11 @@ Builds kernel in background (spawns as subprocess):
 
 ### Manual Flash (if needed)
 ```bash
+# For v16 (with partition fix): flash to RECOVERY partition
+fastboot flash recovery mainline-boot-v16.img
+fastboot reboot
+
+# Or if using old bootimg: flash to BOOT partition
 fastboot flash boot mainline-boot.img
 fastboot reboot
 ```
@@ -114,19 +256,31 @@ picocom -b 115200 /dev/ttyACM0
 
 ## Common Pitfalls
 
-1. **Kernel config mismatch**: If `CONFIG_USB_G_SERIAL` not in image, `strace -e openat` on boot will show no ttyGS0 device
+1. **Missing `bootimg.second` in device config**: lk2nd not embedded in boot image
+   - **Symptom**: Device has no bootloader, won't progress past primary bootloader
+   - **Fix**: Ensure `devices/qcom-msm8226/default.nix` includes `mobile.system.android.bootimg.second = lib.mkDefault "${pkgs.lk2ndMsm8226}/lk2nd.img"`
+
+2. **Boot loop with "full party" vibrations (every 30s)**: lk2nd reads from wrong partition
+   - **Root cause**: lk2nd v15 and earlier hardcoded `ptn_name = "boot"`, but kernel is in RECOVERY partition
+   - **Symptom**: All 5 vibration checkpoints (CP1-CP5) repeat every 30 seconds, then reboot
+   - **Fix**: Use lk2nd v16+ with partition change, flash to RECOVERY: `fastboot flash recovery mainline-boot-vX.img`
+
+3. **lk2nd_boot() causes hang**: Do NOT call lk2nd_boot() - it goes into infinite loop scanning mounted filesystems
+   - **Fix**: Comment out the lk2nd_boot() call (see v15+ patches)
+
+4. **Kernel config mismatch**: If `CONFIG_USB_G_SERIAL` not in image, `strace -e openat` on boot will show no ttyGS0 device
    - **Fix**: Ensure `devices/qcom-msm8226/kernel/config.armv7l` has `CONFIG_USB_G_SERIAL=y`
 
-2. **Wrong bootimg offsets**: Early-boot crash (before initrd vibrator kick)
+5. **Wrong bootimg offsets**: Early-boot crash (before initrd vibrator kick)
    - **Fix**: Verify `offset_base = "0x00000000"` (not 0x80000000)
 
-3. **DTB mismatch**: Kernel hangs with garbage on console
+6. **DTB mismatch**: Kernel hangs with garbage on console
    - **Fix**: Keep `mobile.system.android.bootimg.dt = lib.mkForce null`
 
-4. **Fastboot not found**: Build succeeds but flash step fails
+7. **Fastboot not found**: Build succeeds but flash step fails
    - **Fix**: `nix-shell` includes android-tools; run builds inside shell
 
-5. **No USB serial device after reboot**: Device booted but `/dev/ttyACM0` missing
+8. **No USB serial device after reboot**: Device booted but `/dev/ttyACM0` missing
    - **Cause**: USB Gadget Serial not initialized in kernel
    - **Fix**: Check boot output capture; if kernel text not present, USB issue
 
@@ -142,6 +296,46 @@ picocom -b 115200 /dev/ttyACM0
 - **No flake.nix**: Uses classic Nix expressions (nix-build, not nix build)
 - **Kernel builder**: Custom wrapper in modules/; reads `configfile`, applies `postPatch`, handles cross-compile flags
 - **Build artifacts**: Ignored by .gitignore (bootimg-result/, outputs/, pmaports-tmp/)
+
+### Vibration Checkpoint Diagnostics
+
+lk2nd patch includes vibration checkpoint macros to trace boot flow on physical device (via vibration patterns):
+
+- **VIB_CHECKPOINT_1()** - Single short pulse (aboot_init() START)
+- **VIB_CHECKPOINT_2()** - Double pulse (lk2nd_init() completed)
+- **VIB_CHECKPOINT_3()** - Triple pulse (normal_boot reached)
+- **VIB_CHECKPOINT_4()** - Quad pulse (boot_linux_from_mmc() ENTRY)
+- **VIB_CHECKPOINT_5()** - 5-pulse sequence (about to call boot_linux_from_mmc())
+
+**Interpretation**:
+- **All 5 checkpoints repeating every 30s** ("the full party"): lk2nd reads wrong partition, gets "Invalid boot image header", reboots. Use v16 with partition fix.
+- **Stops at CP4**: lk2nd_boot() infinite loop (comment it out)
+- **Single pulse repeating every 15s**: Kernel crashes early (check config/offsets)
+
+Each pattern is distinctive and easy to identify during boot. If you see checkpoint patterns progress, you know which boot stage was reached before crash.
+
+### Building lk2nd Binary Only (Fast)
+
+When rebuilding ONLY lk2nd (e.g., for patch updates) without full bootimage:
+
+1. **Update version** in `overlay/lk2nd/msm8226.nix`:
+   ```nix
+   version = "22.0-msm8226-titan-clean-vN";  # Increment N to bust cache
+   ```
+
+2. **Ensure patch updated** at `overlay/lk2nd/msm8226-debug-enhanced.patch` (critical: partition name at line 1628)
+
+3. **Update device config** to reference via `pkgs.lk2ndMsm8226` (from overlay) in `devices/qcom-msm8226/default.nix`:
+   ```nix
+   mobile.system.android.bootimg.second = lib.mkDefault "${pkgs.lk2ndMsm8226}/lk2nd.img";
+   ```
+
+4. **Rebuild full bootimage** (kernel + lk2nd):
+   ```bash
+   nix-build --argstr device qcom-msm8226 -A outputs.android-bootimg --max-jobs 4 -o mainline-boot-vN.img
+   ```
+
+**Key**: Nix uses content-addressable paths. Version string MUST change to trigger rebuild - patch changes alone don't. Device config must explicitly reference `pkgs.lk2ndMsm8226` or build will use cached old version.
 
 ## Useful Commands
 

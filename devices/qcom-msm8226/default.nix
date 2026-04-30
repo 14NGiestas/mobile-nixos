@@ -72,13 +72,17 @@
 
   mobile.system.type = "android";
   mobile.system.android.device_name = "titan";
-  mobile.system.android.bootimg.flash = {
-    offset_base = "0x00000000";
-    offset_kernel = "0x00008000";
-    offset_ramdisk = "0x01000000";
-    offset_second = "0x00f00000";
-    offset_tags = "0x00000100";
-    pagesize = "2048";
+  mobile.system.android.bootimg = {
+    second = lib.mkDefault "${pkgs.lk2ndMsm8226}/lk2nd.img";
+    flash = {
+      offset_base = "0x00000000";
+      offset_kernel = "0x00008000";
+      offset_ramdisk = "0x01000000";
+      offset_second = "0x00f00000";
+      offset_tags = "0x00000100";
+      pagesize = "2048";
+    };
+    dt = lib.mkForce null;  # Use bootloader DTB, not kernel-generated
   };
   # Let the bootloader provide its own DTB - don't override
   # The mainline kernel should work with the bootloader's DTB
