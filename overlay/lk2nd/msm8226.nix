@@ -13,7 +13,7 @@ in
 
 stdenv.mkDerivation {
   pname = "lk2nd";
-  version = "22.0-msm8226-titan-clean-v34";
+  version = "22.0-msm8226-titan-clean-v35";
 
   src = fetchFromGitHub {
     repo = "lk2nd";
@@ -89,7 +89,8 @@ PATCH_EOF
   buildPhase = ''
     make lk2nd-msm8226 \
       LD=arm-none-eabi-ld \
-      TOOLCHAIN_PREFIX=arm-none-eabi-
+      TOOLCHAIN_PREFIX=arm-none-eabi- \
+      LK2ND_ADTBS=""
   '';
 
   # Install the bootloader image
