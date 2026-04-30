@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..0546687 100644
+index a451443..17342be 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -38,6 +38,7 @@
@@ -192,7 +192,14 @@ index a451443..0546687 100644
  #endif
  
  	/* Display splash screen if enabled */
-@@ -5651,17 +5672,31 @@ void aboot_init(const struct app_descriptor *app)
+@@ -5645,23 +5666,38 @@ void aboot_init(const struct app_descriptor *app)
+ 	}
+ #endif
+ 
++#define LK2ND_FORCE_FASTBOOT 1
+ #if LK2ND_FORCE_FASTBOOT
+ 	boot_into_fastboot = true;
+ 	dprintf(INFO, "Fastboot mode was forced with compile-time flag.\n");
  #endif
  
  normal_boot:
@@ -226,7 +233,7 @@ index a451443..0546687 100644
  			if(target_use_signed_kernel())
  			{
  				if((device.is_unlocked) || (device.is_tampered))
-@@ -5685,6 +5720,8 @@ retry_boot:
+@@ -5685,6 +5721,8 @@ retry_boot:
  					goto fastboot;
  			}
  
@@ -235,7 +242,7 @@ index a451443..0546687 100644
  			boot_err_type = boot_linux_from_mmc();
  			switch (boot_err_type)
  			{
-@@ -5717,12 +5754,15 @@ retry_boot:
+@@ -5717,12 +5755,15 @@ retry_boot:
  			set_tamper_flag(device.is_tampered);
  	#endif
  			boot_linux_from_flash();
