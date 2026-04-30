@@ -13,7 +13,7 @@ in
 
 stdenv.mkDerivation {
   pname = "lk2nd";
-  version = "22.0-msm8226-titan-clean-v33";
+  version = "22.0-msm8226-titan-clean-v34";
 
   src = fetchFromGitHub {
     repo = "lk2nd";
