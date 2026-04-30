@@ -274,19 +274,32 @@ index a451443..0157ddd 100644
  
  	/* register aboot specific fastboot commands */
 diff --git a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
-index 2d5a68b..b44c0a6 100644
+index 2d5a68b..4c9f805 100644
 --- a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
 +++ b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
-@@ -18,7 +18,8 @@
+@@ -18,21 +18,7 @@
   */
  
  / {
 -	qcom,msm-id = <QCOM_ID_MSM8626 0x4b 0x8100>, <QCOM_ID_MSM8626 0x4b 0x8200>,
-+	qcom,msm-id = <QCOM_ID_MSM8226 0x00 0x8400>,  /* Moto G 2014 Titan - must be first for bootloader match */
-+		      <QCOM_ID_MSM8626 0x4b 0x8100>, <QCOM_ID_MSM8626 0x4b 0x8200>,
- 		      <QCOM_ID_MSM8626 0x4b 0x8300>, <QCOM_ID_MSM8626 0x4b 0x8400>,
- 		      <QCOM_ID_MSM8626 0x4b 0x8500>,
- 		      <QCOM_ID_MSM8626 0x4c 0x8100>, <QCOM_ID_MSM8626 0x4c 0x8200>,
+-		      <QCOM_ID_MSM8626 0x4b 0x8300>, <QCOM_ID_MSM8626 0x4b 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4b 0x8500>,
+-		      <QCOM_ID_MSM8626 0x4c 0x8100>, <QCOM_ID_MSM8626 0x4c 0x8200>,
+-		      <QCOM_ID_MSM8626 0x4c 0x8300>, <QCOM_ID_MSM8626 0x4c 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4c 0x8500>,
+-		      <QCOM_ID_MSM8626 0x4d 0x8100>, <QCOM_ID_MSM8626 0x4d 0x8200>,
+-		      <QCOM_ID_MSM8626 0x4d 0x8300>, <QCOM_ID_MSM8626 0x4d 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4d 0x8500>,
+-		      <QCOM_ID_MSM8626 0x4e 0x8100>, <QCOM_ID_MSM8626 0x4e 0x8200>,
+-		      <QCOM_ID_MSM8626 0x4e 0x8300>, <QCOM_ID_MSM8626 0x4e 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4e 0x8500>,
+-		      <QCOM_ID_MSM8626 0x4f 0x8100>, <QCOM_ID_MSM8626 0x4f 0x8200>,
+-		      <QCOM_ID_MSM8626 0x4f 0x8300>, <QCOM_ID_MSM8626 0x4f 0x8400>,
+-		      <QCOM_ID_MSM8626 0x4f 0x8500>;
++	qcom,msm-id = <QCOM_ID_MSM8226 0x00 0x8400>;  /* Moto G 2014 Titan - ONLY match */
+ };
+ 
+ &lk2nd {
 diff --git a/platform/msm_shared/dev_tree.c b/platform/msm_shared/dev_tree.c
 index 86757c0..628673c 100644
 --- a/platform/msm_shared/dev_tree.c
