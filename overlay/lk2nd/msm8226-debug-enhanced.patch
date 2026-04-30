@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..5033f83 100644
+index a451443..0546687 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -38,6 +38,7 @@
@@ -40,7 +40,7 @@ index a451443..5033f83 100644
  	uint32_t vbmeta_image_sz = 0;
  #endif
 -	char *ptn_name = "boot";
-+	char *ptn_name = "recovery";  // lk2nd primary boot: read kernel from recovery partition
++	char *ptn_name = "recovery";  // lk2nd: read kernel from RECOVERY partition
  #if DEVICE_TREE
  	void * image_buf = NULL;
  	unsigned int dtb_size = 0;
@@ -235,8 +235,18 @@ index a451443..5033f83 100644
  			boot_err_type = boot_linux_from_mmc();
  			switch (boot_err_type)
  			{
-@@ -5723,6 +5760,8 @@ retry_boot:
+@@ -5717,12 +5754,15 @@ retry_boot:
+ 			set_tamper_flag(device.is_tampered);
+ 	#endif
+ 			boot_linux_from_flash();
+-		}
+-		dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
+-			"to fastboot mode.\n");
  	}
++	dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
++		"to fastboot mode.\n");
++	VIB_CHECKPOINT_2();  // Double pulse = about to enter fastboot (boot failed)
++}
  
  fastboot:
 +	dprintf(INFO, "lk2nd: Reached fastboot label - boot_into_fastboot must be true!\n");
@@ -245,10 +255,10 @@ index a451443..5033f83 100644
  
  	/* register aboot specific fastboot commands */
 diff --git a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
-index 2d5a68b..bd5c717 100644
+index 2d5a68b..b3cf737 100644
 --- a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
 +++ b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
-@@ -32,7 +32,8 @@
+@@ -32,12 +32,13 @@
  		      <QCOM_ID_MSM8626 0x4e 0x8500>,
  		      <QCOM_ID_MSM8626 0x4f 0x8100>, <QCOM_ID_MSM8626 0x4f 0x8200>,
  		      <QCOM_ID_MSM8626 0x4f 0x8300>, <QCOM_ID_MSM8626 0x4f 0x8400>,
@@ -258,6 +268,13 @@ index 2d5a68b..bd5c717 100644
  };
  
  &lk2nd {
+-	model = "Motorola Moto G 2014";
+-	compatible = "motorola,titan";
++	model = "Motorola Moto G 2014 (lk2nd)";
++	compatible = "lk2nd-titan-fastboot";
+ 	lk2nd,match-device = "titan";
+ 
+ 	lk2nd,dtb-files = "msm8226-motorola-titan";
 diff --git a/platform/msm_shared/dev_tree.c b/platform/msm_shared/dev_tree.c
 index 86757c0..628673c 100644
 --- a/platform/msm_shared/dev_tree.c
