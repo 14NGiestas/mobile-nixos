@@ -1,5 +1,5 @@
 diff --git a/app/aboot/aboot.c b/app/aboot/aboot.c
-index a451443..0157ddd 100644
+index a451443..17342be 100644
 --- a/app/aboot/aboot.c
 +++ b/app/aboot/aboot.c
 @@ -38,6 +38,7 @@
@@ -40,7 +40,7 @@ index a451443..0157ddd 100644
  	uint32_t vbmeta_image_sz = 0;
  #endif
 -	char *ptn_name = "boot";
-+	char *ptn_name = "boot";  // Read kernel from boot partition (raw bootimage storage)
++	char *ptn_name = "recovery";  // lk2nd: read kernel from RECOVERY partition
  #if DEVICE_TREE
  	void * image_buf = NULL;
  	unsigned int dtb_size = 0;
@@ -242,19 +242,7 @@ index a451443..0157ddd 100644
  			boot_err_type = boot_linux_from_mmc();
  			switch (boot_err_type)
  			{
-@@ -5702,7 +5740,10 @@ retry_boot:
- 						goto retry_boot;
- 					}
- 					else
--						break;
-+					{
-+						dprintf(CRITICAL, "lk2nd: Boot failed (err %d), going to fastboot\n", boot_err_type);
-+						goto fastboot;
-+					}
- 				default:
- 					break;
- 				/* going to fastboot menu */
-@@ -5717,12 +5758,15 @@ retry_boot:
+@@ -5717,12 +5755,15 @@ retry_boot:
  			set_tamper_flag(device.is_tampered);
  	#endif
  			boot_linux_from_flash();
@@ -274,7 +262,7 @@ index a451443..0157ddd 100644
  
  	/* register aboot specific fastboot commands */
 diff --git a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
-index 2d5a68b..3424aa3 100644
+index 2d5a68b..b3cf737 100644
 --- a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
 +++ b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
 @@ -32,12 +32,13 @@
@@ -283,7 +271,7 @@ index 2d5a68b..3424aa3 100644
  		      <QCOM_ID_MSM8626 0x4f 0x8300>, <QCOM_ID_MSM8626 0x4f 0x8400>,
 -		      <QCOM_ID_MSM8626 0x4f 0x8500>;
 +		      <QCOM_ID_MSM8626 0x4f 0x8500>,
-+		      <QCOM_ID_MSM8226 0x00 0x8400>;  /* Moto G 2014 Titan hwrev 0x8400 */
++		      <QCOM_ID_MSM8226 0x00 0x00020000>;  /* Moto G 2014 Titan actual hardware ID */
  };
  
  &lk2nd {
