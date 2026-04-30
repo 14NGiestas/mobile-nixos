@@ -273,6 +273,203 @@ index a451443..0157ddd 100644
  	/* We are here means regular boot did not happen. Start fastboot. */
  
  	/* register aboot specific fastboot commands */
+diff --git a/lk2nd/device/2nd/match.c b/lk2nd/device/2nd/match.c
+index aa74719..08c4d44 100644
+--- a/lk2nd/device/2nd/match.c
++++ b/lk2nd/device/2nd/match.c
+@@ -56,51 +56,92 @@ static bool match_device_node(const void *dtb, int node)
+ 	const fdt32_t *num;
+ 	const char *str;
+ 	int len;
++	const char *node_name = fdt_get_name(dtb, node, NULL);
++
++	dprintf(CRITICAL, "[1400] match_device_node: checking node '%s'\n", node_name);
+ 
+ 	str = fdt_getprop(dtb, node, "lk2nd,match-bootloader", &len);
+ 	if (len != -FDT_ERR_NOTFOUND) {
+-		if (!match_string(lk2nd_dev.bootloader, str, len))
++		dprintf(CRITICAL, "[1401]   lk2nd,match-bootloader='%.*s' (len=%d) vs dev='%s'\n", len, str, len, lk2nd_dev.bootloader);
++		if (!match_string(lk2nd_dev.bootloader, str, len)) {
++			dprintf(CRITICAL, "[1401]   REJECT: bootloader mismatch\n");
+ 			return false;
++		}
++		dprintf(CRITICAL, "[1401]   OK: bootloader matched\n");
+ 		matched = true;
+ 	}
+ 
+ 	str = fdt_getprop(dtb, node, "lk2nd,match-cmdline", &len);
+ 	if (len != -FDT_ERR_NOTFOUND) {
+-		if (!match_string(lk2nd_dev.cmdline, str, len))
++		dprintf(CRITICAL, "[1402]   lk2nd,match-cmdline='%.*s' (len=%d) vs dev='%s'\n", len, str, len, lk2nd_dev.cmdline);
++		if (!match_string(lk2nd_dev.cmdline, str, len)) {
++			dprintf(CRITICAL, "[1402]   REJECT: cmdline mismatch\n");
+ 			return false;
++		}
++		dprintf(CRITICAL, "[1402]   OK: cmdline matched\n");
+ 		matched = true;
+ 	}
+ 
+ 	str = fdt_getprop(dtb, node, "lk2nd,match-device", &len);
+ 	if (len != -FDT_ERR_NOTFOUND) {
+-		if (!match_string(lk2nd_dev.device, str, len))
++		dprintf(CRITICAL, "[1403]   lk2nd,match-device='%.*s' (len=%d) vs dev='%s'\n", len, str, len, lk2nd_dev.device);
++		if (!match_string(lk2nd_dev.device, str, len)) {
++			dprintf(CRITICAL, "[1403]   REJECT: device mismatch\n");
+ 			return false;
++		}
++		dprintf(CRITICAL, "[1403]   OK: device matched\n");
+ 		matched = true;
+ 	}
+ 
+ 	num = fdt_getprop(dtb, node, "lk2nd,match-machtype", &len);
+ 	if (len != -FDT_ERR_NOTFOUND) {
+-		if (len != sizeof(*num) || board_machtype() != fdt32_to_cpu(*num))
++		uint32_t machtype = fdt32_to_cpu(*num);
++		uint32_t board_mt = board_machtype();
++		dprintf(CRITICAL, "[1404]   lk2nd,match-machtype=0x%x vs board=0x%x\n", machtype, board_mt);
++		if (len != sizeof(*num) || board_mt != machtype) {
++			dprintf(CRITICAL, "[1404]   REJECT: machtype mismatch\n");
+ 			return false;
++		}
++		dprintf(CRITICAL, "[1404]   OK: machtype matched\n");
+ 		matched = true;
+ 	}
+ 
+ 	fdt_getprop(dtb, node, "lk2nd,match-panel", &len);
+ 	if (len != -FDT_ERR_NOTFOUND) {
+-		if (len < 0 || !match_panel(dtb, node, lk2nd_dev.panel.name))
++		dprintf(CRITICAL, "[1405]   lk2nd,match-panel present (len=%d)\n", len);
++		if (len < 0 || !match_panel(dtb, node, lk2nd_dev.panel.name)) {
++			dprintf(CRITICAL, "[1405]   REJECT: panel mismatch\n");
+ 			return false;
++		}
++		dprintf(CRITICAL, "[1405]   OK: panel matched\n");
+ 		matched = true;
+ 	}
+ 
++	if (matched) {
++		dprintf(CRITICAL, "[1406] MATCHED node '%s'!\n", node_name);
++	} else {
++		dprintf(CRITICAL, "[1406] NO MATCH: node '%s' has no match properties\n", node_name);
++	}
++
+ 	return matched;
+ }
+ 
+ int lk2nd_device2nd_match_device_node(const void *dtb, int lk2nd_node)
+ {
+ 	int node;
++	int node_count = 0;
++
++	dprintf(CRITICAL, "[1390] lk2nd_device2nd_match_device_node: searching subnodes of lk2nd_node=%d\n", lk2nd_node);
+ 
+-	fdt_for_each_subnode(node, dtb, lk2nd_node)
+-		if (match_device_node(dtb, node))
++	fdt_for_each_subnode(node, dtb, lk2nd_node) {
++		node_count++;
++		dprintf(CRITICAL, "[1391] Examining subnode #%d (offset=%d): '%s'\n", node_count, node, fdt_get_name(dtb, node, NULL));
++		if (match_device_node(dtb, node)) {
++			dprintf(CRITICAL, "[1395] SUCCESS: Found matching device node at offset %d\n", node);
+ 			return node;
++		}
++	}
++
++	dprintf(CRITICAL, "[1396] FAILURE: Checked %d subnodes, none matched. Returning last node offset=%d\n", node_count, node);
+ 	return node;
+ }
+diff --git a/lk2nd/device/2nd/rules.mk b/lk2nd/device/2nd/rules.mk
+index 06d2dd5..4495bda 100644
+--- a/lk2nd/device/2nd/rules.mk
++++ b/lk2nd/device/2nd/rules.mk
+@@ -40,9 +40,12 @@ OUTQCDT := $(LK2ND_QCDT)
+ $(warning WARNING: Using pre-built QCDT image from $(LK2ND_QCDT))
+ else ifneq ($(QCDTBS),)
+ OUTQCDT := $(BUILDDIR)/qcdt.img
++$(warning [DEBUG] Building QCDT from $(words $(QCDTBS)) DTBs: $(QCDTBS))
+ $(OUTQCDT): $(QCDTBS)
+ 	@echo generating QCDT image with $(words $(QCDTBS)) DTBs: $@
+ 	$(NOECHO)lk2nd/scripts/dtbTool -o $@ $(QCDTBS)
++else
++$(warning [DEBUG] QCDTBS is empty, no QCDT will be built)
+ endif
+ 
+ # Generate a 1-byte RAM disk containing a single zero
+@@ -59,6 +62,7 @@ endif
+ 
+ $(OUTBOOTIMG): $(OUTBINDTB) $(OUTQCDT) $(RAMDISK)
+ 	@echo generating Android boot image: $@
++	@echo "[DEBUG-MKBOOTIMG] OUTQCDT=$(OUTQCDT)"
+ 	$(NOECHO)lk2nd/scripts/mkbootimg \
+ 		--kernel=$< \
+ 		--output=$@ \
+diff --git a/lk2nd/device/device.c b/lk2nd/device/device.c
+index 9e30948..3d95452 100644
+--- a/lk2nd/device/device.c
++++ b/lk2nd/device/device.c
+@@ -41,6 +41,8 @@ static int find_device_node(const void *dtb)
+ 	if (lk2nd_node < 0)
+ 		return lk2nd_node;
+ 
++	dprintf(INFO, "=== find_device_node v41 START ===\n");
++
+ 	if (lk2nd_dev.compatible) {
+ 		/* Check if root node is already compatible */
+ 		ret = fdt_node_check_compatible(dtb, lk2nd_node, lk2nd_dev.compatible);
+@@ -56,11 +58,52 @@ static int find_device_node(const void *dtb)
+ 		return node;
+ 	}
+ 
+-	/* If root node already has a "compatible" it always matches */
+-	if (fdt_getprop(dtb, lk2nd_node, "compatible", NULL))
++	/* If root node already has a "compatible" it usually matches, BUT
++	 * if we have a device from cmdline, prefer searching subnodes for device-specific match */
++	if (fdt_getprop(dtb, lk2nd_node, "compatible", NULL)) {
++		const char *match_device;
++		int match_len;
++		
++		dprintf(INFO, "find_device_node: root node has 'compatible', cmdline device=%s\n",
++			lk2nd_dev.device ? lk2nd_dev.device : "(null)");
++		
++		/* Check if root node specifies a device matching requirement */
++		match_device = fdt_getprop(dtb, lk2nd_node, "lk2nd,match-device", &match_len);
++		if (match_len != -FDT_ERR_NOTFOUND) {
++			dprintf(INFO, "find_device_node: root node HAS 'lk2nd,match-device'\n");
++			
++			if (lk2nd_dev.device) {
++				/* Root node has device matching requirement - validate it */
++				int slen = strnlen(match_device, match_len);
++				int dev_len = (int)strlen(lk2nd_dev.device);
++				dprintf(INFO, "find_device_node: comparing '%.*s' vs '%s'\n",
++					slen, match_device, lk2nd_dev.device);
++				
++				if (slen == dev_len && strncmp(lk2nd_dev.device, match_device, slen) == 0) {
++					/* Device matches, accept root node */
++					dprintf(INFO, "find_device_node: MATCH! accepting root node\n");
++					return lk2nd_node;
++				}
++				/* Device mismatch, search subnodes */
++				dprintf(INFO, "find_device_node: MISMATCH! searching subnodes\n");
++				return lk2nd_device2nd_match_device_node(dtb, lk2nd_node);
++			}
++		} else {
++			/* Root node has NO device matching requirement */
++			if (lk2nd_dev.device) {
++				/* But cmdline has a device, so search for device-specific match in subnodes */
++				dprintf(INFO, "find_device_node: root has NO device requirement but cmdline has device=%s, searching subnodes\n",
++					lk2nd_dev.device);
++				return lk2nd_device2nd_match_device_node(dtb, lk2nd_node);
++			}
++			/* No device from cmdline either, accept root node */
++			dprintf(INFO, "find_device_node: no device requirement and no cmdline device, accepting root\n");
++		}
+ 		return lk2nd_node;
++	}
+ 
+ 	/* Fallback to dynamic matching */
++	dprintf(INFO, "find_device_node: root has no 'compatible', searching subnodes\n");
+ 	return lk2nd_device2nd_match_device_node(dtb, lk2nd_node);
+ }
+ 
 diff --git a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts b/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts
 index 2d5a68b..0a1a136 100644
 --- a/lk2nd/device/dts/msm8226/msm8226-motorola-titan.dts

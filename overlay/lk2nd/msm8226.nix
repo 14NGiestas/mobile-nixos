@@ -13,7 +13,7 @@ in
 
 stdenv.mkDerivation {
   pname = "lk2nd";
-  version = "22.0-msm8226-titan-clean-v36";
+  version = "22.0-msm8226-titan-clean-v47";
 
   src = fetchFromGitHub {
     repo = "lk2nd";
@@ -78,20 +78,15 @@ if dtb_files:
 PATCH_EOF
   '';
 
-  # Build the MSM8226 secondary bootloader
-  # Key insight from msm8226-motorola-titan.dts (lines 13-17):
-  # The titan DTB requires special handling because the bootloader looks for custom board id.
-  # Options:
-  # 1. LK2ND_ADTBS="" - Remove ADTBS (appended DTBs) and only use QCDT
-  # 2. LK2ND_DTBS="msm8226-motorola-titan.dtb" - Only include titan DTB
-  # 
-  # We use option 1 with the full QCDT image since that's what the normal build does.
-  buildPhase = ''
-    make lk2nd-msm8226 \
-      LD=arm-none-eabi-ld \
-      TOOLCHAIN_PREFIX=arm-none-eabi- \
-      LK2ND_ADTBS="msm8226-motorola-titan.dtb"
-  '';
+   # Build the MSM8226 secondary bootloader
+   # Device matching has been fixed in find_device_node() - lk2nd now validates
+   # that the DTB matches the device from cmdline (androidboot.device=)
+   # This means we can use the normal build with all DTBs and lk2nd will select correctly
+   buildPhase = ''
+     make lk2nd-msm8226 \
+       LD=arm-none-eabi-ld \
+       TOOLCHAIN_PREFIX=arm-none-eabi-
+   '';
 
   # Install the bootloader image
   installPhase = ''

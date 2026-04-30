@@ -342,6 +342,99 @@ When rebuilding ONLY lk2nd (e.g., for patch updates) without full bootimage:
 
 **Key**: Nix uses content-addressable paths. Version string MUST change to trigger rebuild - patch changes alone don't. Device config must explicitly reference `pkgs.lk2ndMsm8226` or build will use cached old version.
 
+## lk2nd Device Matching Debug Workflow
+
+**Goal**: Fix lk2nd device detection so it finds and boots Titan DTB instead of generic lenok (LG Watch R) DTB.
+
+**Current Issue**: 
+- Bootloader loads generic lenok DTB as root node 
+- Cmdline has `androidboot.device=titan`
+- lk2nd searches appended DTBs (QCDT) for `/lk2nd` subnode with `lk2nd,match-device="titan"`
+- Search currently fails with `-1` (not found)
+
+**Workflow** (all edits in `/tmp/lk2nd-v11-clean/`):
+
+### 1. Add Debug Output to Matching Logic
+
+Edit **`lk2nd/device/2nd/match.c`**:
+- `lk2nd_device2nd_match_device_node()` - wrapper that iterates subnodes
+  - Add: log which subnodes are being examined (`[1390]` prefix)
+  - Add: count of total subnodes checked
+- `match_device_node()` - per-node matching
+  - Add: node name at start (`[1400]`)
+  - Add: log each property checked (`lk2nd,match-device`, etc.)
+  - Add: show actual vs expected values for mismatch
+  - Add: final result (MATCHED or NO MATCH) (`[1406]`)
+
+**Pattern**: Use unique numeric prefixes (1390-1410 range) for easy grep in boot logs.
+
+### 2. Export Patch and Rebuild
+
+```bash
+# In /tmp/lk2nd-v11-clean/
+git diff lk2nd/device/2nd/match.c > /tmp/match-debug.patch
+git diff lk2nd/device/device.c >> /tmp/match-debug.patch
+git diff lk2nd/device/2nd/device.c >> /tmp/match-debug.patch
+
+# Copy to project overlay
+cp /tmp/match-debug.patch /home/pauli/documents/code/titan/mobile-nixos/overlay/lk2nd/msm8226-debug-enhanced.patch
+
+# Increment version in msm8226.nix to bust Nix cache
+# Then build lk2nd binary only:
+nix-build --argstr device qcom-msm8226 -A pkgs.lk2ndMsm8226 --max-jobs 4 -o lk2nd-vXX
+```
+
+**Key**: Use tmux for long builds:
+```bash
+tmux new-session -d -s lk2nd-vXX-build 'cd /home/pauli/documents/code/titan/mobile-nixos && nix-build --argstr device qcom-msm8226 -A pkgs.lk2ndMsm8226 --max-jobs 4 -o lk2nd-vXX'
+tmux capture-pane -t lk2nd-vXX-build:0 -S -50 -p  # Check progress
+```
+
+### 3. Flash and Capture Boot Logs
+
+```bash
+nix-shell  # Enter dev environment
+
+# Flash lk2nd binary to boot partition (for testing, not full bootimage)
+fastboot flash boot lk2nd-vXX/lk2nd.img
+fastboot reboot
+
+# Capture debug output
+fastboot oem log
+fastboot get_staged /tmp/boot.log
+cat /tmp/boot.log | grep "\[13"  # Filter to debug prefixes
+```
+
+### 4. Analyze Output
+
+Expected log flow:
+```
+[1350] find_device_node: root has NO device requirement but cmdline has device=titan, searching subnodes
+[1360] lk2nd_device2nd_match_device_node: searching subnodes of lk2nd_node=N
+[1391] Examining subnode #1 (offset=M): 'msm8226-motorola-titan'
+[1400] match_device_node: checking node 'msm8226-motorola-titan'
+[1403]   lk2nd,match-device='titan' (len=5) vs dev='titan'
+[1403]   OK: device matched
+[1406] MATCHED node 'msm8226-motorola-titan'!
+[1395] SUCCESS: Found matching device node at offset M
+```
+
+**If search fails** (node not found or property mismatch):
+- Check if Titan DTB is actually in appended DTBs
+- Verify `lk2nd,match-device` property exists in source DTS
+- Check `match_string()` logic for edge cases
+
+### 5. Iterate
+
+- Modify source in `/tmp/lk2nd-v11-clean/`
+- Re-export patch
+- Increment version again
+- Rebuild and test
+
+**Don't touch**:
+- Device config or kernel - only edit lk2nd source
+- Nix files except version string
+
 ## Useful Commands
 
 ```bash
