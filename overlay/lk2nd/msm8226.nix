@@ -13,7 +13,7 @@ in
 
 stdenv.mkDerivation {
   pname = "lk2nd";
-  version = "22.0-msm8226-titan-clean-v30";
+  version = "22.0-msm8226-titan-clean-v32";
 
   src = fetchFromGitHub {
     repo = "lk2nd";
@@ -90,7 +90,7 @@ PATCH_EOF
     make lk2nd-msm8226 \
       LD=arm-none-eabi-ld \
       TOOLCHAIN_PREFIX=arm-none-eabi- \
-      LK2ND_DTBS_FILTER="msm8226-motorola-titan.dtb"
+      LK2ND_DTBS="msm8226-motorola-titan.dtb"
   '';
 
   # Install the bootloader image
