@@ -4,7 +4,12 @@
 
 Port Mobile NixOS to Motorola Moto G 2014 (Titan, SoC MSM8226) with USB Gadget Serial console support (ttyGS0 @ 115200 baud) and mainline kernel (v6.16.12).
 
-**Current Status**: Mainline kernel v6.16.12 builds with USB Gadget Serial; lk2nd v16 with partition fix embedded; testing on physical device.
+**Current Status**: 
+- Mainline kernel v6.16.12 builds with USB Gadget Serial ✅
+- lk2nd v34: Boots to fastboot, all vibration checkpoints working ✅
+- **BLOCKER**: Discovered lk2nd device matching bug - uses bootloader's embedded LG Watch R DTB instead of Titan DTB from QCDT
+- Titan DTB corrected (SoC MSM8226 + board-id) but can't be used until upstream lk2nd fix applied
+- See LK2ND_DEVICE_MATCHING_BUG.md for details and proposed fix
 
 ## Build Command
 
