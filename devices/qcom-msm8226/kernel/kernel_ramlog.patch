@@ -1,0 +1,158 @@
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index a41c93988..9dca894e9 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -1093,8 +1093,10 @@ static struct notifier_block arm_restart_nb = {
+ 	.priority = 128,
+ };
+ 
++void early_ramlog(const char *msg);
+ void __init setup_arch(char **cmdline_p)
+ {
++	early_ramlog("90_SETUP_ARCH_ENTRY");
+ 	const struct machine_desc *mdesc = NULL;
+ 	void *atags_vaddr = NULL;
+ 
+@@ -1102,14 +1104,17 @@ void __init setup_arch(char **cmdline_p)
+ 		atags_vaddr = FDT_VIRT_BASE(__atags_pointer);
+ 
+ 	setup_processor();
++	early_ramlog("9A_SETUP_PROC");
+ 	if (atags_vaddr) {
+ 		mdesc = setup_machine_fdt(atags_vaddr);
++	early_ramlog("9B_MACH_FDT");
+ 		if (mdesc)
+ 			memblock_reserve(__atags_pointer,
+ 					 fdt_totalsize(atags_vaddr));
+ 	}
+ 	if (!mdesc)
+ 		mdesc = setup_machine_tags(atags_vaddr, __machine_arch_type);
++	early_ramlog("9C_MACH_TAGS");
+ 	if (!mdesc) {
+ 		early_print("\nError: invalid dtb and unrecognized/unsupported machine ID\n");
+ 		early_print("  r1=0x%08x, r2=0x%08x\n", __machine_arch_type,
+@@ -1122,41 +1127,56 @@ void __init setup_arch(char **cmdline_p)
+ 	machine_desc = mdesc;
+ 	machine_name = mdesc->name;
+ 	dump_stack_set_arch_desc("%s", mdesc->name);
++	early_ramlog("9D_DUMP_STACK");
+ 
+ 	if (mdesc->reboot_mode != REBOOT_HARD)
+ 		reboot_mode = mdesc->reboot_mode;
+ 
+ 	setup_initial_init_mm(_text, _etext, _edata, _end);
++	early_ramlog("9E_INIT_MM");
+ 
+ 	/* populate cmd_line too for later use, preserving boot_command_line */
+ 	strscpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
+ 	*cmdline_p = cmd_line;
+ 
+ 	early_fixmap_init();
++	early_ramlog("9F_FIXMAP");
+ 	early_ioremap_init();
++	early_ramlog("9G_IOREMAP");
+ 
+ 	parse_early_param();
++	early_ramlog("9H_PARSE_PARAM");
+ 
+ #ifdef CONFIG_MMU
+ 	early_mm_init(mdesc);
++	early_ramlog("9I_EARLY_MM");
+ #endif
+ 	setup_dma_zone(mdesc);
++	early_ramlog("9J_DMA_ZONE");
+ 	xen_early_init();
++	early_ramlog("9K_XEN");
+ 	arm_efi_init();
++	early_ramlog("9L_EFI");
+ 	/*
+ 	 * Make sure the calculation for lowmem/highmem is set appropriately
+ 	 * before reserving/allocating any memory
+ 	 */
+ 	adjust_lowmem_bounds();
+ 	arm_memblock_init(mdesc);
++	early_ramlog("9N_MEMBLOCK");
+ 	/* Memory may have been removed so recalculate the bounds. */
+ 	adjust_lowmem_bounds();
++	early_ramlog("9M_LOWMEM1");
+ 
+ 	early_ioremap_reset();
++	early_ramlog("9P_IOREMAP_RST");
+ 
+ 	paging_init(mdesc);
++	early_ramlog("9Q_PAGING");
+ 	kasan_init();
++	early_ramlog("9R_KASAN");
+ 	request_standard_resources(mdesc);
++	early_ramlog("9S_REQ_RES");
+ 
+ 	if (mdesc->restart) {
+ 		__arm_pm_restart = mdesc->restart;
+@@ -1164,9 +1184,12 @@ void __init setup_arch(char **cmdline_p)
+ 	}
+ 
+ 	unflatten_device_tree();
++	early_ramlog("9T_UNFLATTEN");
+ 
+ 	arm_dt_init_cpu_maps();
++	early_ramlog("9U_CPU_MAPS");
+ 	psci_dt_init();
++	early_ramlog("9V_PSCI");
+ #ifdef CONFIG_SMP
+ 	if (is_smp()) {
+ 		if (!mdesc->smp_init || !mdesc->smp_init()) {
+@@ -1176,6 +1199,7 @@ void __init setup_arch(char **cmdline_p)
+ 				smp_set_ops(mdesc->smp);
+ 		}
+ 		smp_init_cpus();
++	early_ramlog("9W_SMP_CPUS");
+ 		smp_build_mpidr_hash();
+ 	}
+ #endif
+diff --git a/kernel/panic.c b/kernel/panic.c
+index b0b9a8bf4..ce3ada909 100644
+--- a/kernel/panic.c
++++ b/kernel/panic.c
+@@ -312,8 +312,10 @@ static void panic_other_cpus_shutdown(bool crash_kexec)
+  *
+  * Display a message, then perform cleanups. This function never returns.
+  */
++void early_ramlog(const char *msg);
+ void panic(const char *fmt, ...)
+ {
++	early_ramlog("!!!_PANIC_CALLED_!!!");
+ 	static char buf[1024];
+ 	va_list args;
+ 	long i, i_next = 0, len;
+@@ -374,6 +376,7 @@ void panic(const char *fmt, ...)
+ 		buf[len - 1] = '\0';
+ 
+ 	pr_emerg("Kernel panic - not syncing: %s\n", buf);
++	early_ramlog(buf);
+ #ifdef CONFIG_DEBUG_BUGVERBOSE
+ 	/*
+ 	 * Avoid nested stack-dumping if a panic occurs during oops processing
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 1eea80d06..a8f26b94d 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -2391,10 +2391,19 @@ MODULE_PARM_DESC(debug_non_panic_cpus,
+ 		 "allow messages from non-panic CPUs in panic()");
+ #endif
+ 
++void early_ramlog(const char *msg);
+ asmlinkage int vprintk_emit(int facility, int level,
+ 			    const struct dev_printk_info *dev_info,
+ 			    const char *fmt, va_list args)
+ {
++	{
++		va_list args2;
++		char buf[256];
++		va_copy(args2, args);
++		vscnprintf(buf, sizeof(buf), fmt, args2);
++		va_end(args2);
++		early_ramlog(buf);
++	}
+ 	struct console_flush_type ft;
+ 	int printed_len;
+ 

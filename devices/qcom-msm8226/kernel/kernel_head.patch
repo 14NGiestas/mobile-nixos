@@ -1,0 +1,41 @@
+diff --git a/arch/arm/kernel/head.S b/arch/arm/kernel/head.S
+index f22c50d4b..2bbf038b3 100644
+--- a/arch/arm/kernel/head.S
++++ b/arch/arm/kernel/head.S
+@@ -91,6 +91,10 @@ kernel_sec_end:
+ 
+ 	__HEAD
+ ENTRY(stext)
++	/* --- TITAN RAW DEBUG TRAP 1 --- */
++	ldr r7, =0x2FF80000
++	ldr r8, =0x54535F31
++	str r8, [r7]
+  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
+ 
+  THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
+@@ -137,6 +141,14 @@ ENTRY(stext)
+ 	bl	__fixup_pv_table
+ #endif
+ 	bl	__create_page_tables
++	/* --- TITAN RAW DEBUG TRAP 2 --- */
++	ldr r7, =0x2FF80004
++	ldr r8, =0x52415F32
++	str r8, [r7]
++	/* --- MAP 0x2FF00000 TO VIRTUAL 0x2FF00000 FOR EARLY C LOGGING --- */
++	ldr r7, =0x2FF00C02
++	ldr r8, =0xBFC
++	str r7, [r4, r8]
+ 
+ 	/*
+ 	 * The following calls CPU specific code in a position independent
+@@ -160,6 +172,10 @@ ENTRY(stext)
+ 	ldr	r13, =__mmap_switched		@ address to jump to after
+ 						@ mmu has been enabled
+ 	badr	lr, 1f				@ return (PIC) address
++	/* --- TITAN RAW DEBUG TRAP 3 --- */
++	ldr r7, =0x2FF80008
++	ldr r8, =0x54505F33
++	str r8, [r7]
+ #ifdef CONFIG_ARM_LPAE
+ 	mov	r5, #0				@ high TTBR0
+ 	mov	r8, r4, lsr #12			@ TTBR1 is swapper_pg_dir pfn

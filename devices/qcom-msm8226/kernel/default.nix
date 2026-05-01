@@ -18,6 +18,12 @@ let
       echo ">>> [MAINLINE] Preparing LLVM/Clang build."
       echo 'LLVM=1' >> Makefile
       echo 'LLVM_IAS=1' >> Makefile
+      
+      echo ">>> Applying RAW ASSEMBLY TRAP patch"
+      patch -p1 < ${./kernel_head.patch}
+      
+      echo ">>> Applying RAMLOG patch"
+      patch -p1 < ${./kernel_ramlog.patch}
     '';
   };
 in

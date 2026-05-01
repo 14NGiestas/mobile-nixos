@@ -14,6 +14,7 @@
   boot.kernelParams = lib.mkForce [
     "console=ttyGS0,115200"
     "loglevel=8"
+    "lk2nd.pass-ramoops"
   ];
 
   boot.initrd = {
@@ -88,4 +89,5 @@
   # The mainline kernel should work with the bootloader's DTB
 
   mobile.quirks.qualcomm.wcnss-wlan.enable = true;
+  mobile.system.android.appendDTB = [ "${pkgs.lk2ndMsm8226}/dtb/msm8226-motorola-titan.dtb" ];
 }

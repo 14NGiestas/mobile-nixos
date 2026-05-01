@@ -13,7 +13,7 @@ in
 
 stdenv.mkDerivation {
   pname = "lk2nd";
-  version = "22.0-msm8226-titan-clean-v47";
+  version = "22.0-msm8226-titan-clean-v57";
 
   src = fetchFromGitHub {
     repo = "lk2nd";
@@ -79,13 +79,15 @@ PATCH_EOF
   '';
 
    # Build the MSM8226 secondary bootloader
-   # Device matching has been fixed in find_device_node() - lk2nd now validates
-   # that the DTB matches the device from cmdline (androidboot.device=)
-   # This means we can use the normal build with all DTBs and lk2nd will select correctly
+   # We use LK2ND_BUNDLE_DTB to hardcode the Titan DTB inside the binary
+   # We use LK2ND_ADTBS to append lenok to the binary, which satisfies the Motorola bootloader
+   # so it will boot lk2nd and pass the androidboot.device=titan cmdline properly.
    buildPhase = ''
      make lk2nd-msm8226 \
        LD=arm-none-eabi-ld \
-       TOOLCHAIN_PREFIX=arm-none-eabi-
+       TOOLCHAIN_PREFIX=arm-none-eabi- \
+       LK2ND_BUNDLE_DTB="msm8226-motorola-titan.dtb" \
+       LK2ND_ADTBS="apq8026-lg-lenok.dtb"
    '';
 
   # Install the bootloader image

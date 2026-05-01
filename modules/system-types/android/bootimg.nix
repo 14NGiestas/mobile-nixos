@@ -29,7 +29,7 @@ pkgs.runCommand name {
   (
     cd $(dirname ${kernel})
     set -x
-    cat ${kernel} ${lib.escapeShellArgs appendDTB} > $kernel
+    cat ${kernel} ${lib.escapeShellArgs appendDTB} > $kernel.new && mv $kernel.new $kernel
   )
   echo Using appended dtb kernel now...
   ''}
